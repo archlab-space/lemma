@@ -1,0 +1,36 @@
+{
+  "name": "lemma",
+  "version": "1.0.0",
+  "description": "AI-Powered Academic Paper Analysis Platform",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend",
+    "edge"
+  ],
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test"
+  },
+  "keywords": [
+    "ai",
+    "academic",
+    "pdf",
+    "research",
+    "papers"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@turbo/gen": "^2.5.6",
+    "@types/node": "^24.4.0",
+    "@typescript-eslint/parser": "^8.43.0",
+    "eslint": "^9.35.0",
+    "prettier": "^3.6.2",
+    "turbo": "^2.5.6",
+    "typescript": "^5.9.2"
+  }
+}

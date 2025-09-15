@@ -19,13 +19,13 @@
 - [x] Create development environment variables template
 
 ### 1.3 Database Schema Design
-- [ ] Design users table schema
-- [ ] Design documents table schema (PDF metadata)
-- [ ] Design document_chunks table with vector embeddings
-- [ ] Design chat_sessions table
-- [ ] Design chat_messages table
-- [ ] Create Supabase migrations
-- [ ] Set up Row Level Security (RLS) policies
+- [x] Design users table schema
+- [x] Design documents table schema (PDF metadata)
+- [x] Design document_chunks table with vector embeddings
+- [x] Design chat_sessions table
+- [x] Design chat_messages table
+- [x] Create Supabase migrations
+- [x] Set up Row Level Security (RLS) policies
 
 ## Phase 2: Core Infrastructure & Streaming Pipeline
 

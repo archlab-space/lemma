@@ -1,0 +1,83 @@
+-- Document chunks table schema
+-- Stores text chunks with vector embeddings for RAG retrieval
+
+CREATE TABLE IF NOT EXISTS public.document_chunks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    document_id UUID NOT NULL REFERENCES public.documents(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    
+    -- Chunk content and metadata
+    content TEXT NOT NULL,
+    content_length INTEGER NOT NULL,
+    chunk_index INTEGER NOT NULL, -- Order within document
+    
+    -- Page and section information
+    page_number INTEGER,
+    section_title TEXT,
+    section_type VARCHAR(50), -- 'abstract', 'introduction', 'methodology', 'results', 'conclusion', 'references', etc.
+    
+    -- Vector embeddings (using pg_vector extension)
+    embedding VECTOR(1536), -- OpenAI text-embedding-3-small dimension
+    -- embedding VECTOR(768), -- Alternative: sentence-transformers dimension
+    
+    -- Chunk processing metadata
+    embedding_model VARCHAR(100) NOT NULL DEFAULT 'text-embedding-3-small',
+    embedding_model_version VARCHAR(20) DEFAULT 'v1',
+    
+    -- Content tokens (for LLM context management)
+    token_count INTEGER,
+    
+    -- Overlap information (for context preservation)
+    overlap_before INTEGER DEFAULT 0, -- Characters overlapping with previous chunk
+    overlap_after INTEGER DEFAULT 0,  -- Characters overlapping with next chunk
+    
+    -- Quality metrics
+    semantic_density FLOAT, -- Measure of information density
+    readability_score FLOAT, -- Text readability score
+    
+    -- Timestamps
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- Create updated_at trigger
+CREATE TRIGGER update_document_chunks_updated_at 
+    BEFORE UPDATE ON public.document_chunks 
+    FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+-- Create indexes
+CREATE INDEX IF NOT EXISTS idx_document_chunks_document_id ON public.document_chunks(document_id);
+CREATE INDEX IF NOT EXISTS idx_document_chunks_user_id ON public.document_chunks(user_id);
+CREATE INDEX IF NOT EXISTS idx_document_chunks_chunk_index ON public.document_chunks(document_id, chunk_index);
+CREATE INDEX IF NOT EXISTS idx_document_chunks_page_number ON public.document_chunks(document_id, page_number);
+CREATE INDEX IF NOT EXISTS idx_document_chunks_section_type ON public.document_chunks(section_type);
+CREATE INDEX IF NOT EXISTS idx_document_chunks_content_length ON public.document_chunks(content_length);
+
+-- Vector similarity search index (using HNSW for fast approximate search)
+CREATE INDEX IF NOT EXISTS idx_document_chunks_embedding_hnsw 
+    ON public.document_chunks 
+    USING hnsw (embedding vector_cosine_ops)
+    WITH (m = 16, ef_construction = 64);
+
+-- Alternative: IVFFlat index for exact search (uncomment if needed)
+-- CREATE INDEX IF NOT EXISTS idx_document_chunks_embedding_ivfflat 
+--     ON public.document_chunks 
+--     USING ivfflat (embedding vector_cosine_ops)
+--     WITH (lists = 100);
+
+-- Full-text search index on content
+CREATE INDEX IF NOT EXISTS idx_document_chunks_content_fts 
+    ON public.document_chunks 
+    USING gin(to_tsvector('english', content));
+
+-- Composite index for user-specific similarity search
+CREATE INDEX IF NOT EXISTS idx_document_chunks_user_document 
+    ON public.document_chunks(user_id, document_id, chunk_index);
+
+-- Comments
+COMMENT ON TABLE public.document_chunks IS 'Text chunks with vector embeddings for RAG retrieval';
+COMMENT ON COLUMN public.document_chunks.embedding IS 'Vector embedding for semantic similarity search';
+COMMENT ON COLUMN public.document_chunks.chunk_index IS 'Sequential order of chunk within document';
+COMMENT ON COLUMN public.document_chunks.overlap_before IS 'Characters overlapping with previous chunk for context preservation';
+COMMENT ON COLUMN public.document_chunks.semantic_density IS 'Measure of information density in the chunk';
+COMMENT ON COLUMN public.document_chunks.token_count IS 'Number of tokens for LLM context management';

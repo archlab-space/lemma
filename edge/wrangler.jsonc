@@ -1,0 +1,53 @@
+/**
+ * Lemma Edge API - Cloudflare Workers Configuration
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "lemma-edge",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-09-13",
+	"compatibility_flags": ["nodejs_compat"],
+	"observability": {
+		"enabled": true
+	},
+	"placement": { "mode": "smart" },
+	
+	// Environment Variables (non-sensitive)
+	"vars": {
+		"SUPABASE_URL": "https://xxx.supabase.co",
+		"SUPABASE_ANON_KEY": "your-anon-key",
+		"BACKEND_URL": "https://your-backend-url.com"
+	},
+
+	// R2 Object Storage Binding
+	"r2_buckets": [
+		{
+			"binding": "DOCUMENTS_BUCKET",
+			"bucket_name": "lemma-documents"
+		}
+	],
+
+	// Development Environment
+	"env": {
+		"development": {
+			"name": "lemma-edge-dev",
+			"vars": {
+				"BACKEND_URL": "http://localhost:8000"
+			}
+		},
+		"staging": {
+			"name": "lemma-edge-staging"
+		},
+		"production": {
+			"name": "lemma-edge-prod"
+		}
+	}
+
+	// Note: Use secrets for sensitive data like service keys:
+	// wrangler secret put SUPABASE_SERVICE_KEY
+	// wrangler secret put R2_ACCESS_KEY_ID
+	// wrangler secret put R2_SECRET_ACCESS_KEY
+	// wrangler secret put OPENAI_API_KEY
+}

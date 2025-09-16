@@ -30,22 +30,22 @@
 ## Phase 2: Core Infrastructure & Streaming Pipeline
 
 ### 2.1 Backend Foundation (FastAPI)
-- [ ] Initialize FastAPI project with proper structure
-- [ ] Set up dependency injection container
-- [ ] Configure CORS for development
-- [ ] Set up logging and error handling
-- [ ] Create health check endpoint
-- [ ] Set up async database connection with Supabase
-- [ ] Create base models and schemas with Pydantic
+- [x] Initialize FastAPI project with proper structure
+- [x] Set up dependency injection container
+- [x] Configure CORS for development
+- [x] Set up logging and error handling
+- [x] Create health check endpoint
+- [x] Set up async database connection with Supabase
+- [x] Create base models and schemas with Pydantic
 
 ### 2.2 Streaming Pipeline Prototype
-- [ ] Create basic FastAPI streaming endpoint (hardcoded text)
-- [ ] Implement StreamingResponse with chunk-by-chunk output
-- [ ] Create Cloudflare Worker to proxy streaming requests
-- [ ] Set up ReadableStream passthrough in Worker
-- [ ] Create React component to consume streaming responses
-- [ ] Test end-to-end streaming pipeline
-- [ ] Handle streaming errors and connection drops
+- [x] Create basic FastAPI streaming endpoint (hardcoded text)
+- [x] Implement StreamingResponse with chunk-by-chunk output
+- [x] Create Cloudflare Worker to proxy streaming requests
+- [x] Set up ReadableStream passthrough in Worker
+- [x] Create React component to consume streaming responses
+- [x] Test end-to-end streaming pipeline
+- [x] Handle streaming errors and connection drops
 
 ### 2.3 Edge API Layer (Cloudflare Workers)
 - [ ] Set up Cloudflare Workers project structure

@@ -167,7 +167,7 @@ export function StreamingDemo() {
         <div className="demo-section">
           <h2 className="text-xl font-semibold mb-4">🚀 Typing Effect with Reconnection</h2>
           <StreamingTextV2
-            endpoint="/api/v1/streaming/typing?text=This%20demonstrates%20improved%20SSE%20parsing%20with%20automatic%20reconnection%20and%20robust%20error%20handling."
+            endpoint="http://localhost:8787/api/v1/streaming/typing?text=This%20demonstrates%20improved%20SSE%20parsing%20with%20automatic%20reconnection%20and%20robust%20error%20handling."
             className="typing-effect"
           />
         </div>
@@ -175,7 +175,7 @@ export function StreamingDemo() {
         <div className="demo-section">
           <h2 className="text-xl font-semibold mb-4">🤖 AI Response Simulation</h2>
           <StreamingTextV2
-            endpoint="/api/v1/streaming/ai-response"
+            endpoint="http://localhost:8787/api/v1/streaming/ai-response"
             className="ai-response"
           />
         </div>
@@ -183,7 +183,7 @@ export function StreamingDemo() {
         <div className="demo-section">
           <h2 className="text-xl font-semibold mb-4">📡 Server-Sent Events Stream</h2>
           <StreamingTextV2
-            endpoint="/api/v1/streaming/sse?count=15&interval=0.8"
+            endpoint="http://localhost:8787/api/v1/streaming/sse?count=15&interval=0.8"
             className="sse-demo"
             autoReconnect={false} // Disable auto-reconnect for finite streams
           />

@@ -23,6 +23,13 @@ This guide will walk you through setting up all the external services needed for
 - Anon/Public Key: `eyJhbGciOiJ...`
 - Service Role Key: `eyJhbGciOiJ...` (keep this secret!)
 
+**Get Direct PostgreSQL Connection String:**
+1. Go to `Connect`
+2. Find "Transaction pooler" section
+3. Copy the "URI" connection string
+4. Format: `postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres`
+5. This will be your `DATABASE_URL` for direct asyncpg connections
+
 ### 2. Enable pg_vector Extension
 
 1. In your Supabase dashboard, go to "SQL Editor"

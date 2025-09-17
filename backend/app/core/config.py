@@ -91,14 +91,22 @@ class Settings(BaseSettings):
     
     @property
     def database_url_async(self) -> str:
-        """Get async database URL from Supabase URL"""
+        """Get async database URL for direct PostgreSQL connection with asyncpg"""
         if self.DATABASE_URL:
             return self.DATABASE_URL
         
-        # Convert Supabase URL to direct PostgreSQL connection
-        # Format: postgresql://postgres:[PASSWORD]@[HOST]:[PORT]/postgres
-        # This should be configured in environment variables
-        return f"postgresql://postgres:@localhost:5432/postgres"
+        # For Supabase, we need the direct PostgreSQL connection URL
+        # This should be set explicitly in environment variables as DATABASE_URL
+        # Format: postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+        
+        # Fallback warning - this won't work in production
+        import warnings
+        warnings.warn(
+            "DATABASE_URL not set. Using localhost fallback which won't work with Supabase. "
+            "Set DATABASE_URL to your Supabase PostgreSQL connection string.",
+            UserWarning
+        )
+        return "postgresql://postgres:password@localhost:5432/postgres"
     
     @property
     def is_development(self) -> bool:

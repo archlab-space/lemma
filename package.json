@@ -11,9 +11,13 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
+    "dev:backend": "cd backend && pnpm run dev",
+    "dev:frontend": "cd frontend && pnpm run dev", 
+    "dev:edge": "cd edge && pnpm run dev",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
-    "test": "turbo test"
+    "test": "turbo test",
+    "config:check": "cd backend && pnpm run config:check"
   },
   "keywords": [
     "ai",

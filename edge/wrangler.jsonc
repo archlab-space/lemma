@@ -16,9 +16,9 @@
 	
 	// Environment Variables (non-sensitive)
 	"vars": {
-		"SUPABASE_URL": "https://xxx.supabase.co",
-		"SUPABASE_ANON_KEY": "your-anon-key",
-		"BACKEND_URL": "https://your-backend-url.com"
+		"SUPABASE_URL": "https://hvbzrbfevhnytecmwbdw.supabase.co",
+		"SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2YnpyYmZldmhueXRlY213YmR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgwNzUwODgsImV4cCI6MjA3MzY1MTA4OH0.8R2l6eSbHujd5CKO1xKh00JuCKGX8PeBBP2VOGKkOAM",
+		"BACKEND_URL": "http://localhost:8000"
 	},
 
 	// R2 Object Storage Binding
@@ -41,7 +41,10 @@
 			"name": "lemma-edge-staging"
 		},
 		"production": {
-			"name": "lemma-edge-prod"
+			"name": "lemma-edge-prod",
+			"vars": {
+				"BACKEND_URL": "http://localhost:8000"
+			}
 		}
 	}
 

@@ -7,14 +7,32 @@ This guide helps you test the end-to-end streaming pipeline across all three lay
 
 ## Quick Test Setup
 
+### 0. Environment Setup (First Time Only)
+```bash
+# Copy environment template and configure
+cp .env.example .env
+# Edit .env with your actual Supabase, R2, and LLM API credentials
+```
+
 ### 1. Start Backend (Terminal 1)
 ```bash
+# Simplest: Use root-level script
+pnpm run dev:backend
+
+# Or from backend directory:
 cd backend
-uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+pnpm run dev
+
+# Check configuration is loaded correctly:
+pnpm run config:check
 ```
 
 ### 2. Start Edge Worker (Terminal 2) 
 ```bash
+# From root:
+pnpm run dev:edge
+
+# Or from edge directory:
 cd edge
 pnpm dev
 # Worker will be available at http://localhost:8787
@@ -22,6 +40,10 @@ pnpm dev
 
 ### 3. Start Frontend (Terminal 3)
 ```bash
+# From root:
+pnpm run dev:frontend
+
+# Or from frontend directory:
 cd frontend  
 pnpm dev
 # Frontend will be available at http://localhost:3000
@@ -78,17 +100,43 @@ curl -N -H "Accept: text/event-stream" http://localhost:8787/api/v1/streaming/ss
 
 ### 🔧 Troubleshooting
 
+**Environment Variables Issues?**
+```bash
+# Check if .env exists in root
+ls -la .env
+
+# Verify environment variables are loaded
+uv run --directory backend python -c "from app.core.config import get_settings; print(get_settings().SUPABASE_URL)"
+
+# Test database connection
+uv run --directory backend python -c "
+from app.core.config import get_settings
+settings = get_settings()
+print(f'Database URL: {settings.database_url_async}')
+print(f'Supabase URL: {settings.SUPABASE_URL}')
+"
+```
+
 **Backend not starting?**
 ```bash
+# Install dependencies first
 cd backend
-uv sync  # Install dependencies first
+uv sync
+
+# Check if configuration loads correctly
+uv run --env-file ../.env python -c "from app.core.config import get_settings; print('Config loaded successfully')"
 ```
+
+**Backend database connection errors?**
+- Ensure `DATABASE_URL` is set in `.env` with your actual Supabase PostgreSQL connection string
+- Check that pg_vector extension is enabled in Supabase
+- Verify your Supabase project is running
 
 **Edge worker errors?**
 ```bash
 cd edge
 pnpm install  # Install dependencies
-# Check wrangler.jsonc configuration
+# Check wrangler.jsonc configuration for BACKEND_URL
 ```
 
 **Frontend connection issues?**

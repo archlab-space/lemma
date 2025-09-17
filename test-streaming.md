@@ -63,6 +63,12 @@ pnpm dev
 - **Proxied Health**: http://localhost:8787/api/v1/health  
 - **Proxied Streaming**: http://localhost:8787/api/v1/streaming/test
 
+### Production Edge Features
+- **JWT Authentication**: Send `Authorization: Bearer <token>` header
+- **Rate Limiting**: Check `X-RateLimit-*` headers in responses
+- **Request Tracing**: Every response includes `X-Request-ID` header
+- **KV Rate Limiting**: Persistent across worker instances (requires KV setup)
+
 ### Frontend Testing
 - **Complete Demo**: http://localhost:3000
 - The page includes interactive demos for all streaming types
@@ -88,6 +94,20 @@ curl -N http://localhost:8787/api/v1/streaming/test
 
 # Test with headers
 curl -N -H "Accept: text/event-stream" http://localhost:8787/api/v1/streaming/sse
+
+# Test with JWT authentication (if you have a token)
+curl -N -H "Authorization: Bearer YOUR_JWT_TOKEN" http://localhost:8787/api/v1/streaming/test
+
+# Test JWT authentication with health endpoint
+curl -H "Authorization: Bearer YOUR_JWT_TOKEN" http://localhost:8787/health
+# Should show user info in the response if token is valid
+
+# Check rate limiting headers
+curl -I http://localhost:8787/api/v1/health
+# Look for: X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset
+
+# Test rate limiting (make 101+ requests quickly to see 429 response)
+for i in {1..105}; do curl -s http://localhost:8787/api/v1/health; done
 ```
 
 ## Expected Behaviors
@@ -137,6 +157,14 @@ uv run --env-file ../.env python -c "from app.core.config import get_settings; p
 cd edge
 pnpm install  # Install dependencies
 # Check wrangler.jsonc configuration for BACKEND_URL
+
+# Setup KV namespace for rate limiting (optional, but recommended)
+wrangler kv:namespace create "RATE_LIMIT_KV"
+wrangler kv:namespace create "RATE_LIMIT_KV" --preview
+# Update wrangler.jsonc with the returned namespace IDs
+
+# Generate TypeScript types
+pnpm run cf-typegen
 ```
 
 **Frontend connection issues?**

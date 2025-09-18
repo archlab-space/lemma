@@ -68,8 +68,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Handle different auth events
         if (event === 'SIGNED_IN') {
           console.log('✅ User signed in:', session?.user?.email)
-          // Force a page refresh to update middleware
-          setTimeout(() => window.location.reload(), 100)
         } else if (event === 'SIGNED_OUT') {
           console.log('👋 User signed out')
         } else if (event === 'TOKEN_REFRESHED') {

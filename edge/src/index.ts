@@ -4,7 +4,7 @@
  */
 
 import { Router } from 'itty-router';
-import { Env, RequestContext } from './types';
+import { Env, RequestContext, Middleware, RouteHandler } from './types';
 import { corsMiddleware } from './middleware/cors';
 import { authMiddleware } from './middleware/auth';
 import { loggingMiddleware } from './middleware/logging';
@@ -16,36 +16,74 @@ import { apiProxyHandler, streamingProxyHandler } from './handlers/proxy';
 const router = Router();
 
 // Middleware wrapper to adapt itty-router to our middleware interface
-function adaptMiddleware(middleware: any) {
+function adaptMiddleware(middleware: Middleware) {
 	return async (request: Request, env: Env, ctx: ExecutionContext) => {
-		const context: RequestContext = {
-			env,
-			ctx,
-			requestId: '', // Will be set by logging middleware
-			startTime: Date.now(),
-		};
-		
-		// Store context on request for handler access
-		(request as any).context = context;
-		
-		return middleware(request, context, async () => {
-			// Continue to next middleware/handler
-			return new Response('Continue');
-		});
+		try {
+			// Get or create context
+			let context: RequestContext = (request as any).context;
+			if (!context) {
+				context = {
+					env,
+					ctx,
+					requestId: crypto.randomUUID(),
+					startTime: Date.now(),
+				};
+				(request as any).context = context;
+			}
+			
+			// Call middleware with proper next function
+			const response = await middleware(request, context, async () => {
+				// Return a marker response to indicate continuation
+				return new Response('__CONTINUE__', { status: 200 });
+			});
+			
+			// If middleware returns the continue marker, proceed to next
+			if (response.status === 200 && await response.text() === '__CONTINUE__') {
+				return; // Let itty-router continue to next handler
+			}
+			
+			return response;
+		} catch (error) {
+			console.error('Middleware error:', error);
+			return new Response(
+				JSON.stringify({
+					message: 'Middleware error',
+					error_code: 'MIDDLEWARE_ERROR',
+				}),
+				{
+					status: 500,
+					headers: { 'Content-Type': 'application/json' },
+				}
+			);
+		}
 	};
 }
 
 // Handler wrapper to adapt our handlers to itty-router
-function adaptHandler(handler: any) {
+function adaptHandler(handler: RouteHandler) {
 	return async (request: Request, env: Env, ctx: ExecutionContext) => {
-		const context: RequestContext = (request as any).context || {
-			env,
-			ctx,
-			requestId: crypto.randomUUID(),
-			startTime: Date.now(),
-		};
-		
-		return handler(request, context);
+		try {
+			const context: RequestContext = (request as any).context || {
+				env,
+				ctx,
+				requestId: crypto.randomUUID(),
+				startTime: Date.now(),
+			};
+			
+			return await handler(request, context);
+		} catch (error) {
+			console.error('Handler error:', error);
+			return new Response(
+				JSON.stringify({
+					message: 'Handler error',
+					error_code: 'HANDLER_ERROR',
+				}),
+				{
+					status: 500,
+					headers: { 'Content-Type': 'application/json' },
+				}
+			);
+		}
 	};
 }
 

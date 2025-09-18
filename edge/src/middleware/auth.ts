@@ -20,67 +20,30 @@ interface JWTPayload {
 	aud?: string; // audience
 }
 
-async function validateJWTWithSigningKey(token: string, signingKey: string, algorithm: string = 'ES256'): Promise<User | null> {
+async function validateJWT(token: string, key: string | any, algorithm: string = 'ES256'): Promise<User | null> {
 	try {
-		// For ES256, the signingKey might be a JWK string or regular secret
-		let key = signingKey;
+		let verificationKey = key;
 		
-		// If it looks like a JWK, parse it
-		if (signingKey.startsWith('{') && signingKey.includes('"kty"')) {
+		// Handle string keys that might be JWK JSON
+		if (typeof key === 'string' && key.startsWith('{') && key.includes('"kty"')) {
 			try {
-				const jwk = JSON.parse(signingKey);
-				// For ES256 JWK verification, we need to use the JWK directly
-				const isValid = await jwt.verify(token, jwk, {
-					algorithm: algorithm as any,
-				});
-				
-				if (!isValid) {
-					return null;
-				}
-				
-				// Continue with payload parsing...
-				const decoded = jwt.decode(token);
-				if (!decoded.payload) {
-					return null;
-				}
-				
-				const payload = decoded.payload as JWTPayload;
-				
-				// Additional validation
-				if (!payload.sub || !payload.email) {
-					console.warn('JWT missing required fields (sub, email)');
-					return null;
-				}
-				
-				// Check expiration manually for better error handling
-				if (payload.exp && Date.now() >= payload.exp * 1000) {
-					console.warn('JWT token expired');
-					return null;
-				}
-				
-				return {
-					id: payload.sub,
-					email: payload.email,
-					role: payload.role || 'user',
-					iat: payload.iat,
-					exp: payload.exp,
-				};
-			} catch (jwkError) {
-				console.error('JWK parsing failed, trying as regular secret:', jwkError);
-				// Fall through to regular verification
+				verificationKey = JSON.parse(key);
+			} catch (parseError) {
+				console.error('Failed to parse JWK string, using as regular secret:', parseError);
+				verificationKey = key;
 			}
 		}
 		
-		// Regular secret verification (HS256 or legacy)
-		const isValid = await jwt.verify(token, signingKey, {
-			algorithm: algorithm as any, // ES256, HS256, etc.
+		// Verify JWT with appropriate key
+		const isValid = await jwt.verify(token, verificationKey, {
+			algorithm: algorithm as any,
 		});
 		
 		if (!isValid) {
 			return null;
 		}
 
-		// Decode payload safely
+		// Decode and validate payload
 		const decoded = jwt.decode(token);
 		if (!decoded.payload) {
 			return null;
@@ -88,13 +51,13 @@ async function validateJWTWithSigningKey(token: string, signingKey: string, algo
 
 		const payload = decoded.payload as JWTPayload;
 
-		// Additional validation
+		// Validate required fields
 		if (!payload.sub || !payload.email) {
 			console.warn('JWT missing required fields (sub, email)');
 			return null;
 		}
 
-		// Check expiration manually for better error handling
+		// Check expiration
 		if (payload.exp && Date.now() >= payload.exp * 1000) {
 			console.warn('JWT token expired');
 			return null;
@@ -109,50 +72,6 @@ async function validateJWTWithSigningKey(token: string, signingKey: string, algo
 		};
 	} catch (error) {
 		console.error('JWT validation failed:', error);
-		return null;
-	}
-}
-
-async function validateJWTWithJWK(token: string, jwk: any, algorithm: string = 'ES256'): Promise<User | null> {
-	try {
-		// Direct JWK verification
-		const isValid = await jwt.verify(token, jwk, {
-			algorithm: algorithm as any,
-		});
-		
-		if (!isValid) {
-			return null;
-		}
-
-		// Decode payload safely
-		const decoded = jwt.decode(token);
-		if (!decoded.payload) {
-			return null;
-		}
-
-		const payload = decoded.payload as JWTPayload;
-
-		// Additional validation
-		if (!payload.sub || !payload.email) {
-			console.warn('JWT missing required fields (sub, email)');
-			return null;
-		}
-
-		// Check expiration manually for better error handling
-		if (payload.exp && Date.now() >= payload.exp * 1000) {
-			console.warn('JWT token expired');
-			return null;
-		}
-
-		return {
-			id: payload.sub,
-			email: payload.email,
-			role: payload.role || 'user',
-			iat: payload.iat,
-			exp: payload.exp,
-		};
-	} catch (error) {
-		console.error('JWT JWK validation failed:', error);
 		return null;
 	}
 }
@@ -178,16 +97,8 @@ export const authMiddleware: Middleware = async (request, context, next) => {
 		}
 		
 		if (signingKey) {
-			let user: User | null = null;
-			
-			// Handle JWK object vs string
-			if (typeof signingKey === 'object' && signingKey !== null) {
-				// Direct JWK object (from import)
-				user = await validateJWTWithJWK(token, signingKey, algorithm);
-			} else if (typeof signingKey === 'string') {
-				// String (could be JWK string or regular secret)
-				user = await validateJWTWithSigningKey(token, signingKey, algorithm);
-			}
+			// Use consolidated validation function
+			const user = await validateJWT(token, signingKey, algorithm);
 			
 			if (user) {
 				context.user = user;

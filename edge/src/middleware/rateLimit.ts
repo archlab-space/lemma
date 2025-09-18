@@ -3,7 +3,7 @@
  * Using Cloudflare KV for persistent, distributed rate limiting
  */
 
-import { Middleware, RateLimitConfig } from '../types';
+import { Middleware, RateLimitConfig, RequestContext } from '../types';
 
 interface RateLimitData {
 	count: number;
@@ -17,7 +17,7 @@ function getClientIP(request: Request): string {
 		   'unknown';
 }
 
-function getUserKey(request: Request, context: any): string {
+function getUserKey(request: Request, context: RequestContext): string {
 	// Use user ID if authenticated, otherwise use IP
 	if (context.user?.id) {
 		return `user:${context.user.id}`;

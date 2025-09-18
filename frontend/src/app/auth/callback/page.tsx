@@ -1,0 +1,93 @@
+'use client'
+
+/**
+ * OAuth Callback Page
+ * Handles OAuth redirects from Supabase Auth
+ */
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+
+export default function AuthCallbackPage() {
+  const router = useRouter()
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const handleAuthCallback = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession()
+        
+        if (error) {
+          console.error('Auth callback error:', error)
+          setError(error.message)
+          setStatus('error')
+          return
+        }
+
+        if (data.session) {
+          setStatus('success')
+          // Redirect to dashboard or intended page
+          router.push('/dashboard')
+        } else {
+          setError('No session found')
+          setStatus('error')
+        }
+      } catch (err) {
+        console.error('Unexpected error during auth callback:', err)
+        setError('An unexpected error occurred')
+        setStatus('error')
+      }
+    }
+
+    handleAuthCallback()
+  }, [router])
+
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Completing authentication...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (status === 'error') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md text-center">
+          <div className="text-red-500 mb-4">
+            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.728-.833-2.498 0L4.316 15.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Authentication Failed</h1>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={() => router.push('/auth')}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md text-center">
+        <div className="text-green-500 mb-4">
+          <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h1 className="text-xl font-semibold text-gray-900 mb-2">Authentication Successful</h1>
+        <p className="text-gray-600">Redirecting to your dashboard...</p>
+      </div>
+    </div>
+  )
+}

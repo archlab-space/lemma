@@ -1,0 +1,90 @@
+/**
+ * Supabase middleware utilities for Next.js
+ * Handles session refresh and token management
+ */
+
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
+
+export async function updateSession(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({
+    request,
+  })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            request.cookies.set(name, value)
+          })
+          supabaseResponse = NextResponse.next({
+            request,
+          })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  // IMPORTANT: Avoid writing any logic between createServerClient and
+  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
+  // issues with users being randomly logged out.
+
+  const {
+    data: { user },
+    error
+  } = await supabase.auth.getUser()
+
+  if (error) {
+    console.log('🚨 Auth error in middleware:', error.message)
+  }
+
+  const { pathname } = request.nextUrl
+
+  // Define protected routes that require authentication
+  const protectedRoutes = ['/dashboard', '/documents', '/settings', '/api']
+  
+  // Define auth routes that should redirect if already authenticated
+  const authRoutes = ['/auth', '/auth/reset-password']
+
+  // Check if current path is protected
+  const isProtectedRoute = protectedRoutes.some(route => 
+    pathname.startsWith(route)
+  )
+
+  // Check if current path is an auth route
+  const isAuthRoute = authRoutes.some(route => 
+    pathname.startsWith(route)
+  )
+
+  // Redirect to auth if accessing protected route without user
+  if (isProtectedRoute && !user) {
+    const redirectUrl = new URL('/auth', request.url)
+    redirectUrl.searchParams.set('redirect', pathname)
+    return NextResponse.redirect(redirectUrl)
+  }
+
+  // Redirect to dashboard if accessing auth routes with valid user
+  if (isAuthRoute && user) {
+    // Check if there's a redirect parameter
+    const redirectTo = request.nextUrl.searchParams.get('redirect')
+    const destination = redirectTo && redirectTo.startsWith('/') ? redirectTo : '/dashboard'
+    return NextResponse.redirect(new URL(destination, request.url))
+  }
+
+  // IMPORTANT: You *must* return the supabaseResponse object as it is.
+  // If you're creating a new response object with NextResponse.next() make sure to:
+  // 1. Pass the request in it, like so: const supabaseResponse = NextResponse.next({ request })
+  // 2. Copy over the cookies, like so: supabaseResponse.cookies.setAll(response.cookies.getAll())
+  // 3. Change the supabaseResponse object before finally returning it.
+
+  return supabaseResponse
+}

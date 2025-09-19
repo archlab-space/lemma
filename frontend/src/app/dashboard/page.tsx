@@ -13,9 +13,10 @@ import { DocumentLibrary } from '@/components/user/DocumentLibrary'
 import { UserProfile } from '@/components/user/UserProfile'
 import { UserSettings } from '@/components/user/UserSettings'
 import { StreamingDemo } from '@/components/StreamingDemo'
+import { FileUpload } from '@/components/upload/FileUpload'
 import Link from 'next/link'
 
-type TabType = 'overview' | 'documents' | 'profile' | 'settings' | 'demo'
+type TabType = 'overview' | 'documents' | 'upload' | 'profile' | 'settings' | 'demo'
 
 export default function DashboardPage() {
   const { user, signOut } = useAuth()
@@ -41,6 +42,7 @@ export default function DashboardPage() {
   const tabs = [
     { id: 'overview', name: 'Overview', icon: '📊' },
     { id: 'documents', name: 'Documents', icon: '📄' },
+    { id: 'upload', name: 'Upload', icon: '📤' },
     { id: 'profile', name: 'Profile', icon: '👤' },
     { id: 'settings', name: 'Settings', icon: '⚙️' },
     { id: 'demo', name: 'Demo', icon: '🚀' },
@@ -128,7 +130,7 @@ export default function DashboardPage() {
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <button
-                    onClick={() => setActiveTab('documents')}
+                    onClick={() => setActiveTab('upload')}
                     className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left"
                   >
                     <div className="flex items-center">
@@ -187,6 +189,28 @@ export default function DashboardPage() {
               onDocumentSelect={(doc) => console.log('Selected document:', doc)}
               onDocumentDelete={(id) => console.log('Delete document:', id)}
             />
+          )}
+
+          {activeTab === 'upload' && (
+            <div className="space-y-6">
+              <div className="bg-white shadow rounded-lg p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Upload Documents</h3>
+                <p className="text-gray-600 mb-6">
+                  Upload PDF documents for AI-powered analysis. Files are securely stored and processed automatically.
+                </p>
+              </div>
+              <FileUpload
+                onUploadComplete={(file) => {
+                  console.log('Upload completed:', file)
+                  // Could trigger a refresh of the documents list
+                }}
+                onUploadError={(file, error) => {
+                  console.error('Upload error:', error)
+                }}
+                maxFileSize={50 * 1024 * 1024} // 50MB
+                allowMultiple={true}
+              />
+            </div>
           )}
 
           {activeTab === 'profile' && (

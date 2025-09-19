@@ -24,14 +24,14 @@ CREATE POLICY "Users can view their own profile" ON public.users
 CREATE POLICY "Users can view their own documents" ON public.documents
     FOR SELECT USING (auth.uid() = user_id AND deleted_at IS NULL);
 
-CREATE POLICY "Users can insert their own documents" ON public.documents
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- CREATE POLICY "Users can insert their own documents" ON public.documents
+--     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update their own documents" ON public.documents
-    FOR UPDATE USING (auth.uid() = user_id);
+-- CREATE POLICY "Users can update their own documents" ON public.documents
+--     FOR UPDATE USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can delete their own documents" ON public.documents
-    FOR DELETE USING (auth.uid() = user_id);
+-- CREATE POLICY "Users can delete their own documents" ON public.documents
+--     FOR DELETE USING (auth.uid() = user_id);
 
 -- Document chunks table policies
 -- Users can only access chunks from their own documents

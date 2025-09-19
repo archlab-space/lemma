@@ -82,42 +82,29 @@ export const authMiddleware: Middleware = async (request, context, next) => {
 	if (authHeader?.startsWith('Bearer ')) {
 		const token = authHeader.substring(7);
 		
-		// Use ES256 by default (Supabase ECC), fallback to HS256 for backward compatibility
+		// Validate JWT at Edge and extract user info
 		const algorithm = context.env.JWT_ALGORITHM || 'ES256';
-		
-		// Try different key sources in order of preference
 		let signingKey: string | any | undefined;
 		
 		if (algorithm === 'ES256') {
-			// For ES256, prefer built-in JWK, then env var, then Supabase service key
 			signingKey = supabaseJWK || context.env.JWT_SIGNING_KEY || context.env.SUPABASE_SERVICE_KEY;
 		} else {
-			// For HS256, use environment variables
 			signingKey = context.env.JWT_SIGNING_KEY || context.env.SUPABASE_SERVICE_KEY;
 		}
 		
 		if (signingKey) {
-			// Use consolidated validation function
 			const user = await validateJWT(token, signingKey, algorithm);
 			
 			if (user) {
 				context.user = user;
 				
-				// Log successful authentication (without sensitive data)
-				console.log('User authenticated:', {
+				console.log('User authenticated at Edge:', {
 					userId: user.id,
 					email: user.email,
-					role: user.role,
-					algorithm,
-					keySource: typeof signingKey === 'object' ? 'jwk-file' : 'env-var',
 					requestId: context.requestId,
 				});
 			} else {
-				// Log authentication failure for monitoring
-				console.warn('JWT authentication failed:', {
-					hasToken: true,
-					hasSigningKey: !!signingKey,
-					algorithm,
+				console.warn('JWT validation failed at Edge:', {
 					requestId: context.requestId,
 				});
 			}
@@ -133,7 +120,7 @@ export const requireAuth: Middleware = async (request, context, next) => {
 	if (!context.user) {
 		return new Response(
 			JSON.stringify({
-				message: 'Authentication required',
+				error: 'Authentication required',
 				error_code: 'UNAUTHORIZED',
 			}),
 			{

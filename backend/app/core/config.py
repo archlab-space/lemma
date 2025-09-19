@@ -79,6 +79,7 @@ class Settings(BaseSettings):
     
     # Security
     SECRET_KEY: str = "dev-secret-key-change-in-production"
+    WORKER_SECRET: str = "dev-worker-secret-change-in-production"  # Secret for Edge Worker authentication
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
     
     # Logging Configuration

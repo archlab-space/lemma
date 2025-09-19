@@ -7,11 +7,15 @@ export interface Env {
 	SUPABASE_ANON_KEY: string;
 	SUPABASE_SERVICE_KEY?: string;
 	BACKEND_URL: string;
-	DOCUMENTS_BUCKET?: R2Bucket;
+	WORKER_SECRET: string; // Secret for backend communication
+	DOCUMENTS_BUCKET?: R2Bucket; // R2 bucket binding for file storage
 	RATE_LIMIT_KV?: KVNamespace;
 	JWT_SIGNING_KEY?: string; // JWT signing key (JWK for ES256, secret for HS256)
 	JWT_ALGORITHM?: string; // Algorithm: ES256 (default), HS256 (fallback)
 	JWT_SECRET?: string; // Fallback for backward compatibility
+	R2_ACCESS_KEY_ID?: string; // R2 access key ID for presigned URLs
+	R2_SECRET_ACCESS_KEY?: string; // R2 secret access key for presigned URLs
+	R2_ACCOUNT_ID?: string; // R2 account ID for presigned URLs
 }
 
 export interface RequestContext {

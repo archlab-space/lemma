@@ -1,18 +1,13 @@
 from typing import AsyncGenerator
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from supabase import create_client, Client
+from fastapi import Depends, HTTPException, Request
 import asyncpg
-from functools import lru_cache
 
 from .config import get_settings
 from .logging import get_logger
-from .exceptions import AuthenticationError, InvalidTokenError
 from ..db.session import get_db_session, create_db_pool, close_db_pool
 
 settings = get_settings()
 logger = get_logger(__name__)
-security = HTTPBearer()
 
 
 async def get_db_connection() -> AsyncGenerator[asyncpg.Connection, None]:
@@ -21,96 +16,48 @@ async def get_db_connection() -> AsyncGenerator[asyncpg.Connection, None]:
         yield connection
 
 
-# Supabase Client Dependencies
-@lru_cache()
-def get_supabase_client() -> Client:
-    """Get a Supabase client instance."""
-    return create_client(
-        settings.SUPABASE_URL,
-        settings.SUPABASE_SERVICE_KEY
-    )
+# Worker-based Authentication (replaced JWT verification)
+# Edge Workers handle JWT validation and pass user info via headers
 
 
-def get_supabase() -> Client:
-    """Dependency to get Supabase client."""
-    return get_supabase_client()
-
-
-# Authentication Dependencies
-class AuthService:
-    """Service for handling authentication operations."""
+async def verify_worker_secret(request: Request) -> None:
+    """Verify that the request comes from a legitimate Edge Worker."""
+    worker_secret = request.headers.get("X-Worker-Secret")
     
-    def __init__(self, supabase: Client):
-        self.supabase = supabase
-    
-    async def verify_token(self, token: str) -> dict:
-        """Verify JWT token and return user data."""
-        try:
-            # Verify the JWT token with Supabase
-            response = self.supabase.auth.get_user(token)
-            
-            if not response or not response.user:
-                raise InvalidTokenError("Invalid token")
-            
-            return {
-                "id": response.user.id,
-                "email": response.user.email,
-                "user_metadata": response.user.user_metadata,
-                "app_metadata": response.user.app_metadata,
-            }
-        except Exception as e:
-            logger.error("Token verification failed", error=str(e))
-            raise InvalidTokenError("Token verification failed")
-    
-    async def get_user_by_id(self, user_id: str) -> dict | None:
-        """Get user data by ID."""
-        try:
-            response = self.supabase.table("users").select("*").eq("id", user_id).execute()
-            
-            if response.data:
-                return response.data[0]
-            return None
-        except Exception as e:
-            logger.error("Failed to get user by ID", user_id=user_id, error=str(e))
-            return None
+    if not worker_secret or worker_secret != settings.WORKER_SECRET:
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized: Invalid or missing worker secret"
+        )
 
 
-async def get_auth_service(
-    supabase: Client = Depends(get_supabase)
-) -> AuthService:
-    """Dependency to get authentication service."""
-    return AuthService(supabase)
-
-
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    auth_service: AuthService = Depends(get_auth_service)
+async def get_current_user_from_headers(
+    request: Request,
+    _: None = Depends(verify_worker_secret)  # Ensure worker secret is valid first
 ) -> dict:
-    """Dependency to get the current authenticated user."""
-    token = credentials.credentials
-    return await auth_service.verify_token(token)
-
-
-async def get_current_user_optional(
-    credentials: HTTPAuthorizationCredentials | None = Depends(
-        HTTPBearer(auto_error=False)
-    ),
-    auth_service: AuthService = Depends(get_auth_service)
-) -> dict | None:
-    """Dependency to get the current user if authenticated, None otherwise."""
-    if not credentials:
-        return None
+    """Extract user information from trusted Edge Worker headers."""
+    user_id = request.headers.get("X-User-ID")
+    user_email = request.headers.get("X-User-Email")
+    user_role = request.headers.get("X-User-Role", "user")
     
-    try:
-        return await auth_service.verify_token(credentials.credentials)
-    except (AuthenticationError, InvalidTokenError):
-        return None
+    if not user_id or not user_email:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing user information in headers"
+        )
+    
+    return {
+        "id": user_id,
+        "email": user_email,
+        "role": user_role
+    }
 
 
-# Settings Dependency
-def get_app_settings():
-    """Dependency to get application settings."""
-    return settings
+async def get_current_user_id(
+    current_user: dict = Depends(get_current_user_from_headers)
+) -> str:
+    """Dependency to get the current user's ID."""
+    return current_user["id"]
 
 
 # Startup and Shutdown Events

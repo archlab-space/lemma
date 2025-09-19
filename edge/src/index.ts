@@ -3,14 +3,31 @@
  * Production-ready architecture with itty-router, JWT auth, KV rate limiting
  */
 
-import { Router } from 'itty-router';
+import { Router, cors, json, error } from 'itty-router';
 import { Env, RequestContext, Middleware, RouteHandler } from './types';
-import { corsMiddleware } from './middleware/cors';
-import { authMiddleware } from './middleware/auth';
+import { authMiddleware, requireAuth } from './middleware/auth';
 import { loggingMiddleware } from './middleware/logging';
 import { apiRateLimit, streamingRateLimit } from './middleware/rateLimit';
 import { healthHandler, backendHealthHandler } from './handlers/health';
 import { apiProxyHandler, streamingProxyHandler } from './handlers/proxy';
+import { generatePresignedUrlHandler } from './handlers/upload';
+import { 
+  checkDuplicateHandler,
+  createDocumentHandler, 
+  getDocumentsHandler, 
+  getDocumentHandler,
+  deleteDocumentHandler,
+  updateDocumentStatusHandler
+} from './handlers/documents';
+
+// Create CORS configuration
+const { preflight, corsify } = cors({
+	origin: ['http://localhost:3000'], // Frontend origins
+	credentials: true,
+	allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+	allowHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'X-Requested-With'],
+	maxAge: 86400, // 24 hours
+});
 
 // Create itty-router instance
 const router = Router();
@@ -34,11 +51,14 @@ function adaptMiddleware(middleware: Middleware) {
 			// Call middleware with proper next function
 			const response = await middleware(request, context, async () => {
 				// Return a marker response to indicate continuation
-				return new Response('__CONTINUE__', { status: 200 });
+				return new Response('__CONTINUE__', { 
+					status: 200,
+					headers: { 'X-Continue': 'true' }
+				});
 			});
 			
 			// If middleware returns the continue marker, proceed to next
-			if (response.status === 200 && await response.text() === '__CONTINUE__') {
+			if (response.status === 200 && response.headers.get('X-Continue') === 'true') {
 				return; // Let itty-router continue to next handler
 			}
 			
@@ -87,10 +107,12 @@ function adaptHandler(handler: RouteHandler) {
 	};
 }
 
+// Apply CORS preflight handler for OPTIONS requests
+router.all('*', preflight)
+
 // Apply global middleware using itty-router's middleware system
 router
 	.all('*', adaptMiddleware(loggingMiddleware))
-	.all('*', adaptMiddleware(corsMiddleware))
 	.all('*', adaptMiddleware(authMiddleware))
 
 // Health check routes
@@ -99,12 +121,25 @@ router
 	.get('/health', adaptHandler(healthHandler))
 	.get('/api/v1/health', adaptMiddleware(apiRateLimit), adaptHandler(backendHealthHandler))
 
+// Upload endpoints (require authentication)
+router
+	.post('/api/v1/upload/presigned-url', adaptMiddleware(requireAuth), adaptMiddleware(apiRateLimit), adaptHandler(generatePresignedUrlHandler))
+
+// Document endpoints (require authentication)
+router
+	.post('/api/v1/documents/check-duplicate', adaptMiddleware(requireAuth), adaptMiddleware(apiRateLimit), adaptHandler(checkDuplicateHandler))
+	.post('/api/v1/documents', adaptMiddleware(requireAuth), adaptMiddleware(apiRateLimit), adaptHandler(createDocumentHandler))
+	.get('/api/v1/documents', adaptMiddleware(requireAuth), adaptMiddleware(apiRateLimit), adaptHandler(getDocumentsHandler))
+	.get('/api/v1/documents/:id', adaptMiddleware(requireAuth), adaptMiddleware(apiRateLimit), adaptHandler(getDocumentHandler))
+	.delete('/api/v1/documents/:id', adaptMiddleware(requireAuth), adaptMiddleware(apiRateLimit), adaptHandler(deleteDocumentHandler))
+	.patch('/api/v1/documents/:id/status', adaptMiddleware(requireAuth), adaptMiddleware(apiRateLimit), adaptHandler(updateDocumentStatusHandler))
+
 // Streaming endpoints with specific rate limiting
 router
 	.get('/api/v1/streaming/*', adaptMiddleware(streamingRateLimit), adaptHandler(streamingProxyHandler))
 	.post('/api/v1/streaming/*', adaptMiddleware(streamingRateLimit), adaptHandler(streamingProxyHandler))
 
-// Other API endpoints with general rate limiting
+// Other API endpoints with general rate limiting (catch-all for backend proxy)
 router
 	.get('/api/*', adaptMiddleware(apiRateLimit), adaptHandler(apiProxyHandler))
 	.post('/api/*', adaptMiddleware(apiRateLimit), adaptHandler(apiProxyHandler))
@@ -137,11 +172,15 @@ router
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 		try {
-			return await router.fetch(request, env, ctx);
-		} catch (error) {
-			console.error('Worker error:', error);
+			return router
+				.fetch(request, env, ctx)
+				.then(json)
+				.catch(error)
+				.then((response) => corsify(response, request));
+		} catch (err) {
+			console.error('Worker error:', err);
 			
-			return new Response(
+			const errorResponse = new Response(
 				JSON.stringify({
 					message: 'Internal server error',
 					error_code: 'WORKER_ERROR',
@@ -155,6 +194,8 @@ export default {
 					},
 				}
 			);
+			
+			return corsify(errorResponse, request);
 		}
 	},
 } satisfies ExportedHandler<Env>;

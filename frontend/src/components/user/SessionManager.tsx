@@ -243,8 +243,8 @@ export function SessionManager({ onSessionRevoked }: SessionManagerProps) {
         </div>
         
         <p className="text-xs text-gray-500 mt-2">
-          Use "Revoke All Other Sessions" if you suspect your account has been compromised.
-          Use "Sign Out Everywhere" to sign out of all devices including this one.
+          Use &ldquo;Revoke All Other Sessions&rdquo; if you suspect your account has been compromised.
+          Use &ldquo;Sign Out Everywhere&rdquo; to sign out of all devices including this one.
         </p>
       </div>
     </div>

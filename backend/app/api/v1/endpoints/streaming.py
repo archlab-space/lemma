@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials
 
-from app.core.dependencies import get_current_user_optional
+from app.core.dependencies import get_current_user_from_headers
 from app.core.logging import get_logger
 
 router = APIRouter()
@@ -151,7 +151,7 @@ This research contributes significantly to our understanding of hybrid AI archit
 async def test_basic_streaming(
     message: str = Query(default="Hello from FastAPI streaming!", description="Message to stream"),
     delay: float = Query(default=0.1, ge=0.01, le=2.0, description="Delay between chunks in seconds"),
-    user: Dict[str, Any] = Depends(get_current_user_optional)
+    user: Dict[str, Any] = Depends(get_current_user_from_headers)
 ):
     """Basic streaming test endpoint with hardcoded text."""
     
@@ -177,7 +177,7 @@ async def test_basic_streaming(
 @router.get("/typing")
 async def test_typing_effect(
     text: str = Query(default="This is a realistic typing effect demonstration.", description="Text to type"),
-    user: Dict[str, Any] = Depends(get_current_user_optional)
+    user: Dict[str, Any] = Depends(get_current_user_from_headers)
 ):
     """Typing effect streaming endpoint."""
     
@@ -199,7 +199,7 @@ async def test_typing_effect(
 
 @router.get("/ai-response")
 async def test_ai_response_simulation(
-    user: Dict[str, Any] = Depends(get_current_user_optional)
+    user: Dict[str, Any] = Depends(get_current_user_from_headers)
 ):
     """Simulate a realistic AI assistant response stream."""
     
@@ -222,7 +222,7 @@ async def test_ai_response_simulation(
 async def server_sent_events_demo(
     count: int = Query(default=10, ge=1, le=100, description="Number of events to send"),
     interval: float = Query(default=1.0, ge=0.1, le=5.0, description="Interval between events"),
-    user: Dict[str, Any] = Depends(get_current_user_optional)
+    user: Dict[str, Any] = Depends(get_current_user_from_headers)
 ):
     """Server-Sent Events (SSE) demonstration."""
     

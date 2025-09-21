@@ -16,7 +16,7 @@ dependencies = [
     "asyncpg>=0.30.0",
     "supabase>=2.18.1",
     "pydantic-settings>=2.10.1",
-    "pydantic>=2.11.9",
+    "pydantic[email]>=2.11.9",
 ]
 
 [project.optional-dependencies]

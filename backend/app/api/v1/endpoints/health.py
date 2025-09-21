@@ -4,7 +4,7 @@ import asyncpg
 import time
 from datetime import datetime, timezone
 
-from app.core.dependencies import get_db_connection, get_supabase
+from app.core.dependencies import get_db_connection
 from app.core.config import get_settings
 from app.core.logging import get_logger
 
@@ -28,7 +28,6 @@ async def health_check():
 @router.get("/detailed", response_model=Dict[str, Any])
 async def detailed_health_check(
     db: asyncpg.Connection = Depends(get_db_connection),
-    supabase = Depends(get_supabase)
 ):
     """Detailed health check with dependency verification."""
     start_time = time.time()
@@ -51,26 +50,6 @@ async def detailed_health_check(
             "status": "unhealthy",
             "duration_ms": 0,
             "details": f"Database connection failed: {str(e)}"
-        }
-        overall_status = "unhealthy"
-    
-    # Check Supabase connection
-    try:
-        supabase_start = time.time()
-        # Try to access a system table to verify connection
-        response = supabase.table("users").select("count", count="exact").limit(1).execute()
-        supabase_duration = (time.time() - supabase_start) * 1000
-        
-        checks["supabase"] = {
-            "status": "healthy",
-            "duration_ms": round(supabase_duration, 2),
-            "details": "Supabase connection successful"
-        }
-    except Exception as e:
-        checks["supabase"] = {
-            "status": "unhealthy",
-            "duration_ms": 0,
-            "details": f"Supabase connection failed: {str(e)}"
         }
         overall_status = "unhealthy"
     

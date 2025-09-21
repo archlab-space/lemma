@@ -78,13 +78,13 @@
 ## Phase 4: PDF Processing & RAG Implementation
 
 ### 4.1 PDF Upload System
-- [ ] Create secure file upload component
-- [ ] Implement pre-signed URL generation for R2
-- [ ] Add file validation (PDF only, size limits)
-- [ ] Create upload progress indicator
-- [ ] Handle upload errors and retries
-- [ ] Store file metadata in database
-- [ ] Implement file deletion functionality
+- [x] Create secure file upload component
+- [x] Implement pre-signed URL generation for R2
+- [x] Add file validation (PDF only, size limits)
+- [x] Create upload progress indicator
+- [x] Handle upload errors and retries
+- [x] Store file metadata in database
+- [x] Implement file deletion functionality
 
 ### 4.2 PDF Processing Pipeline
 - [ ] Set up PyMuPDF for PDF parsing

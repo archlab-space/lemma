@@ -285,7 +285,7 @@ export function FileUpload({
       console.log('Checking for duplicates...')
       const duplicateCheck = await checkDuplicate(fileHash)
       
-      if (duplicateCheck.isDuplicate && duplicateCheck.existingDocument.processingStatus === 'completed') {
+      if (duplicateCheck.isDuplicate && duplicateCheck.existingDocument.processingStatus !== 'pending') {
         throw new Error(`This document has already been uploaded: "${duplicateCheck.existingDocument.originalFilename}"`)
       }
 
@@ -369,7 +369,26 @@ export function FileUpload({
         ))
       })
 
-      // Step 6: Update status to processing (backend will handle PDF processing)
+      // Step 6: Notify backend that upload is complete and ready for processing
+      console.log('Notifying backend of successful upload...')
+      try {
+        await fetch(`http://localhost:8787/api/v1/documents/${documentResponse.document.id}/status`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            processingStatus: 'processing'
+          }),
+        })
+        console.log('Backend notified of upload completion')
+      } catch (error) {
+        console.warn('Failed to notify backend of upload completion:', error)
+        // Don't fail the upload for this - it's not critical
+      }
+
+      // Step 7: Update UI status to processing (backend will handle PDF processing)
       const completedFile = {
         ...uploadFile,
         status: 'processing' as const,

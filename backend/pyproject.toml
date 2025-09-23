@@ -17,6 +17,12 @@ dependencies = [
     "supabase>=2.18.1",
     "pydantic-settings>=2.10.1",
     "pydantic[email]>=2.11.9",
+    # PDF Processing
+    "pymupdf>=1.26.4",
+    "python-magic>=0.4.27",
+    "pillow>=11.3.0",
+    # AI/LLM Integration
+    "litellm>=1.77.3",
 ]
 
 [project.optional-dependencies]

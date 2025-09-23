@@ -133,6 +133,7 @@ router
 	.get('/api/v1/documents/:id', adaptMiddleware(requireAuth), adaptMiddleware(apiRateLimit), adaptHandler(getDocumentHandler))
 	.delete('/api/v1/documents/:id', adaptMiddleware(requireAuth), adaptMiddleware(apiRateLimit), adaptHandler(deleteDocumentHandler))
 	.patch('/api/v1/documents/:id/status', adaptMiddleware(requireAuth), adaptMiddleware(apiRateLimit), adaptHandler(updateDocumentStatusHandler))
+	.post('/api/v1/documents/:id/process', adaptMiddleware(requireAuth), adaptMiddleware(apiRateLimit), adaptHandler(apiProxyHandler))
 
 // Streaming endpoints with specific rate limiting
 router

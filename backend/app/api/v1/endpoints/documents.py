@@ -14,6 +14,7 @@ from app.schemas.document import (
     DocumentSummary
 )
 from app.services.document_service import DocumentService
+from app.services.document_processor import document_processor
 from app.models.document import ProcessingStatus
 from app.core.dependencies import get_current_user_id, get_current_user_from_headers
 
@@ -288,6 +289,10 @@ async def update_document_status(
             error_message
         )
         
+        # If status is being set to 'processing', trigger the actual processing
+        if processing_status == ProcessingStatus.PROCESSING:
+            await document_processor.trigger_processing(UUID(document_id))
+            
         return {
             "id": str(document.id),
             "processingStatus": document.processing_status,
@@ -301,3 +306,38 @@ async def update_document_status(
         raise HTTPException(status_code=400, detail="Invalid document ID format")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update document status: {str(e)}")
+
+
+@router.post("/{document_id}/process")
+async def trigger_document_processing(
+    document_id: str,
+    user_id: str = Depends(get_current_user_id)
+) -> Dict[str, Any]:
+    """Manually trigger document processing."""
+    try:
+        document_service = DocumentService()
+        document = await document_service.get_document_by_id(UUID(user_id), UUID(document_id))
+        
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+            
+        # Check if document is in a processable state
+        if document.processing_status not in [ProcessingStatus.PENDING, ProcessingStatus.FAILED]:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Document cannot be processed in current status: {document.processing_status}"
+            )
+        
+        # Trigger processing
+        await document_processor.trigger_processing(UUID(document_id))
+        
+        return {
+            "message": "Document processing triggered",
+            "documentId": document_id,
+            "status": "processing"
+        }
+        
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid document ID format")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to trigger processing: {str(e)}")

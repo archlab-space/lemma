@@ -68,11 +68,8 @@ class VectorStorage:
                     document_id
                 )
                 
-                # Insert new chunks
-                stored_count = 0
-                for chunk in chunks_with_embeddings:
-                    await self._insert_chunk(session, document_id, chunk)
-                    stored_count += 1
+                # Insert new chunks using batch insert
+                stored_count = await self._batch_insert_chunks(session, document_id, chunks_with_embeddings)
                 
                 logger.info(f"Successfully stored {stored_count} chunks for document {document_id}")
                 return stored_count
@@ -80,6 +77,78 @@ class VectorStorage:
         except Exception as e:
             logger.error(f"Failed to store chunks for document {document_id}: {str(e)}")
             raise VectorStorageError(f"Failed to store document chunks: {str(e)}") from e
+    
+    async def _batch_insert_chunks(self, session, document_id: UUID, chunks: List[Dict[str, Any]]) -> int:
+        """Batch insert chunks for better performance."""
+        if not chunks:
+            return 0
+        
+        # Prepare batch data
+        batch_data = []
+        for chunk in chunks:
+            if 'embedding' not in chunk or not chunk['embedding']:
+                continue
+                
+            # Prepare chunk data
+            content = chunk.get('content', '')
+            embedding = chunk.get('embedding', [])
+            page_number = chunk.get('page_number', 1)
+            chunk_index = chunk.get('chunk_index', 0)
+            word_count = chunk.get('word_count', 0)
+            char_count = chunk.get('char_count', 0)
+            
+            # Metadata
+            metadata = {
+                'chunk_type': chunk.get('chunk_type', 'unknown'),
+                'block_id': chunk.get('block_id'),
+                'bbox': chunk.get('bbox'),
+                'embedding_model': chunk.get('embedding_model'),
+                'embedding_version': chunk.get('embedding_version'),
+                'vector_dimension': chunk.get('vector_dimension'),
+                'part_of_block': chunk.get('part_of_block', False),
+                'block_part': chunk.get('block_part'),
+                'sentence_count': chunk.get('sentence_count')
+            }
+            
+            # Remove None values from metadata
+            metadata = {k: v for k, v in metadata.items() if v is not None}
+            
+            batch_data.append((
+                document_id,
+                content,
+                embedding,
+                page_number,
+                chunk_index,
+                word_count,
+                char_count,
+                json.dumps(metadata)
+            ))
+        
+        if not batch_data:
+            logger.warning("No valid chunks with embeddings found for batch insert")
+            return 0
+        
+        # Use executemany for batch insert
+        try:
+            await session.executemany("""
+                INSERT INTO public.document_chunks (
+                    document_id, 
+                    content, 
+                    embedding, 
+                    page_number, 
+                    chunk_index, 
+                    word_count, 
+                    char_count, 
+                    metadata
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            """, batch_data)
+            
+            logger.debug(f"Batch inserted {len(batch_data)} chunks")
+            return len(batch_data)
+            
+        except Exception as e:
+            logger.error(f"Batch insert failed: {str(e)}")
+            raise VectorStorageError(f"Batch insert failed: {str(e)}") from e
     
     async def _insert_chunk(self, session, document_id: UUID, chunk: Dict[str, Any]):
         """Insert a single chunk into the database."""

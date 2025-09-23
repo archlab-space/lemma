@@ -14,6 +14,7 @@ from datetime import datetime
 
 from app.services.pdf_processor import PDFProcessor
 from app.services.document_service import DocumentService
+from app.services.chunk_processor import chunk_processor
 from app.models.document import ProcessingStatus
 from app.core.logging import get_logger
 from app.core.config import get_settings
@@ -101,11 +102,13 @@ class DocumentProcessor:
             enrichment = processing_result.get("enrichment", {})
             ai_enhancement_status = processing_result.get("ai_enhancement_status", {"success": False, "error": None})
             
-            # Update document with extracted metadata
-            await self._update_document_metadata(document_id, metadata, outline, enrichment, ai_enhancement_status)
+            # Process chunks through embedding pipeline
+            chunk_processing_result = await chunk_processor.process_document_chunks(document_id, chunks)
+            chunk_count = chunk_processing_result.get('stored_chunks', 0)
+            embedding_status = chunk_processing_result.get('embedding_status', {})
             
-            # Store chunks for RAG (this will be implemented in Phase 4.3)
-            chunk_count = await self._store_document_chunks(document_id, chunks)
+            # Update document with extracted metadata
+            await self._update_document_metadata(document_id, metadata, outline, enrichment, ai_enhancement_status, embedding_status, chunk_count)
             
             # Calculate processing statistics
             processing_duration = (datetime.now() - processing_start).total_seconds()
@@ -126,6 +129,18 @@ class DocumentProcessor:
                     "publication_year": metadata.get("publication_year"),
                     "ai_enhanced": metadata.get("ai_enhanced", False),
                     "ai_enhancement_success": ai_enhancement_status.get("success", False)
+                },
+                "chunk_processing": {
+                    "status": chunk_processing_result.get("status"),
+                    "success_rate": chunk_processing_result.get("success_rate", 0),
+                    "embedding_statistics": chunk_processing_result.get("statistics", {}).get("embedding_statistics", {})
+                },
+                "embedding_processing": {
+                    "status": embedding_status.get("status"),
+                    "embedded_chunks": embedding_status.get("embedded_chunks", 0),
+                    "failed_chunks": embedding_status.get("failed_chunks", 0),
+                    "model_name": embedding_status.get("model_name"),
+                    "processing_duration": embedding_status.get("processing_duration_seconds", 0)
                 }
             }
             
@@ -181,7 +196,7 @@ class DocumentProcessor:
             logger.error(f"Failed to get document for processing: {str(e)}")
             return None
 
-    async def _update_document_metadata(self, document_id: UUID, metadata: Dict[str, Any], outline: list, enrichment: Dict[str, Any], ai_enhancement_status: Dict[str, Any]):
+    async def _update_document_metadata(self, document_id: UUID, metadata: Dict[str, Any], outline: list, enrichment: Dict[str, Any], ai_enhancement_status: Dict[str, Any], embedding_status: Dict[str, Any], chunk_count: int):
         """Update document in database with extracted metadata."""
         try:
             from app.db.session import get_db_session
@@ -200,10 +215,11 @@ class DocumentProcessor:
                         language = $9,
                         total_pages = $10,
                         total_words = $11,
-                        outline = $12,
-                        enrichment = $13,
-                        ai_enhancement_status = $14,
-                        updated_at = $15
+                        total_chunks = $12,
+                        outline = $13,
+                        enrichment = $14,
+                        ai_enhancement_status = $15,
+                        embedding_status = $16
                     WHERE id = $1
                 """, 
                 document_id,
@@ -217,10 +233,11 @@ class DocumentProcessor:
                 metadata.get("language", "en"),
                 metadata.get("page_count", 0),
                 metadata.get("word_count", 0),
+                chunk_count,
                 outline,
                 enrichment,
                 ai_enhancement_status,
-                datetime.now()
+                embedding_status,
                 )
                 
             logger.info(f"Updated document metadata for {document_id}")
@@ -229,37 +246,6 @@ class DocumentProcessor:
             logger.error(f"Failed to update document metadata: {str(e)}")
             raise
 
-    async def _store_document_chunks(self, document_id: UUID, chunks: list) -> int:
-        """
-        Store document chunks for RAG retrieval.
-        This is a placeholder for Phase 4.3 (Embeddings & Vector Storage).
-        """
-        try:
-            # For now, we'll just log the chunks and return count
-            # In Phase 4.3, we'll implement actual embedding generation and storage
-            
-            logger.info(f"Storing {len(chunks)} chunks for document {document_id}")
-            
-            # TODO: Implement in Phase 4.3
-            # - Generate embeddings for each chunk
-            # - Store chunks with embeddings in document_chunks table
-            # - Update document.total_chunks field
-            
-            # Placeholder: Update total_chunks in document
-            from app.db.session import get_db_session
-            
-            async with get_db_session() as session:
-                await session.execute("""
-                    UPDATE public.documents 
-                    SET total_chunks = $2, updated_at = $3
-                    WHERE id = $1
-                """, document_id, len(chunks), datetime.now())
-            
-            return len(chunks)
-            
-        except Exception as e:
-            logger.error(f"Failed to store document chunks: {str(e)}")
-            raise
 
     async def process_document_async(self, document_id: UUID):
         """

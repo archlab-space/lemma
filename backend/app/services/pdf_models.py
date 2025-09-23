@@ -14,7 +14,7 @@ settings = get_settings()
 
 class ProcessingConfig:
     """Configuration constants for PDF processing."""
-    MAX_CHUNK_WORDS = getattr(settings, 'PDF_MAX_CHUNK_WORDS', 1200)
+    MAX_CHUNK_WORDS = getattr(settings, 'PDF_MAX_CHUNK_WORDS', 400)
     OVERLAP_WORDS = getattr(settings, 'PDF_OVERLAP_WORDS', 100)
     MAX_ANALYSIS_CHARS = getattr(settings, 'PDF_MAX_ANALYSIS_CHARS', 1_000_000)
     READING_WPM = getattr(settings, 'PDF_READING_WPM', 200)

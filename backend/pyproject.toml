@@ -23,6 +23,8 @@ dependencies = [
     "pillow>=11.3.0",
     # AI/LLM Integration
     "litellm>=1.77.3",
+    # Embeddings
+    "sentence-transformers>=5.1.1",
 ]
 
 [project.optional-dependencies]

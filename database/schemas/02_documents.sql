@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS public.documents (
     -- AI-powered enrichment data
     enrichment JSONB, -- Research questions, key contributions, methodology summary, etc.
     ai_enhancement_status JSONB, -- Status of AI enhancement: {success: boolean, error: string, timestamp: string}
+    embedding_status JSONB, -- Status of embedding generation and storage: {status: string, model_name: string, total_chunks: int, etc.}
     
     -- Timestamps
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
@@ -76,5 +77,6 @@ COMMENT ON COLUMN public.documents.file_hash IS 'SHA-256 hash for duplicate dete
 COMMENT ON COLUMN public.documents.outline IS 'Document table of contents as structured JSON';
 COMMENT ON COLUMN public.documents.enrichment IS 'AI-generated enrichment data including research questions, key contributions, methodology summary, reading time, technical terms, etc.';
 COMMENT ON COLUMN public.documents.ai_enhancement_status IS 'Status of AI enhancement process with success flag, error message, and timestamp';
+COMMENT ON COLUMN public.documents.embedding_status IS 'Status of embedding generation and storage process including model info, chunk counts, and completion status';
 COMMENT ON COLUMN public.documents.processing_status IS 'Current processing state of the document';
 COMMENT ON COLUMN public.documents.storage_path IS 'Path to file in object storage bucket';

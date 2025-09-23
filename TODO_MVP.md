@@ -96,13 +96,13 @@
 - [x] Create processing status tracking
 
 ### 4.3 Embeddings & Vector Storage
-- [ ] Set up sentence-transformers for embeddings
-- [ ] Implement text chunking with overlap
-- [ ] Generate and store vector embeddings
-- [ ] Create vector similarity search functions
-- [ ] Optimize embedding storage in pg_vector
-- [ ] Implement batch processing for large documents
-- [ ] Add embedding model version tracking
+- [x] Set up sentence-transformers for embeddings
+- [x] Implement text chunking with overlap
+- [x] Generate and store vector embeddings
+- [x] Create vector similarity search functions
+- [x] Optimize embedding storage in pg_vector
+- [x] Implement batch processing for large documents
+- [x] Add embedding model version tracking
 
 ### 4.4 RAG Implementation
 - [ ] Create retrieval functions for relevant chunks

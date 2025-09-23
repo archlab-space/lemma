@@ -87,13 +87,13 @@
 - [x] Implement file deletion functionality
 
 ### 4.2 PDF Processing Pipeline
-- [ ] Set up PyMuPDF for PDF parsing
-- [ ] Implement text extraction with layout preservation
-- [ ] Create semantic chunking strategy (by sections)
-- [ ] Add metadata extraction (title, authors, abstract)
-- [ ] Implement table of contents extraction
+- [x] Set up PyMuPDF for PDF parsing
+- [x] Implement text extraction with layout preservation
+- [x] Create semantic chunking strategy (by sections)
+- [x] Add metadata extraction (title, authors, abstract)
+- [x] Implement table of contents extraction
 - [ ] Handle special elements (equations, figures, tables)
-- [ ] Create processing status tracking
+- [x] Create processing status tracking
 
 ### 4.3 Embeddings & Vector Storage
 - [ ] Set up sentence-transformers for embeddings

@@ -7,7 +7,14 @@ import { Router, cors, json, error } from 'itty-router';
 import { Env, RequestContext, Middleware, RouteHandler } from './types';
 import { authMiddleware, requireAuth } from './middleware/auth';
 import { loggingMiddleware } from './middleware/logging';
-import { apiRateLimit, streamingRateLimit } from './middleware/rateLimit';
+import { 
+  apiRateLimit, 
+  streamingRateLimit, 
+  chatRateLimit, 
+  conversationRateLimit, 
+  chatStreamingRateLimit, 
+  feedbackRateLimit 
+} from './middleware/rateLimit';
 import { healthHandler, backendHealthHandler } from './handlers/health';
 import { apiProxyHandler, streamingProxyHandler } from './handlers/proxy';
 import { generatePresignedUrlHandler } from './handlers/upload';
@@ -19,6 +26,19 @@ import {
   deleteDocumentHandler,
   updateDocumentStatusHandler
 } from './handlers/documents';
+import {
+  createConversationHandler,
+  listConversationsHandler,
+  getConversationHistoryHandler,
+  deleteConversationHandler,
+  sessionStreamingChatHandler,
+  streamingChatHandler,
+  syncChatHandler,
+  documentSummaryHandler,
+  suggestQuestionsHandler,
+  messageFeedbackHandler,
+  chatHealthHandler
+} from './handlers/chat';
 
 // Create CORS configuration
 const { preflight, corsify } = cors({
@@ -135,6 +155,31 @@ router
 	.patch('/api/v1/documents/:id/status', adaptMiddleware(requireAuth), adaptMiddleware(apiRateLimit), adaptHandler(updateDocumentStatusHandler))
 	.post('/api/v1/documents/:id/process', adaptMiddleware(requireAuth), adaptMiddleware(apiRateLimit), adaptHandler(apiProxyHandler))
 
+// Chat endpoints (require authentication)
+router
+	// Conversation management
+	.post('/api/v1/chat/conversations', adaptMiddleware(requireAuth), adaptMiddleware(conversationRateLimit), adaptHandler(createConversationHandler))
+	.get('/api/v1/chat/conversations', adaptMiddleware(requireAuth), adaptMiddleware(conversationRateLimit), adaptHandler(listConversationsHandler))
+	.get('/api/v1/chat/conversations/:id', adaptMiddleware(requireAuth), adaptMiddleware(conversationRateLimit), adaptHandler(getConversationHistoryHandler))
+	.delete('/api/v1/chat/conversations/:id', adaptMiddleware(requireAuth), adaptMiddleware(conversationRateLimit), adaptHandler(deleteConversationHandler))
+	
+	// Session-based streaming Q&A (most specific route first)
+	.post('/api/v1/chat/sessions/:sessionId/ask', adaptMiddleware(requireAuth), adaptMiddleware(chatStreamingRateLimit), adaptHandler(sessionStreamingChatHandler))
+	
+	// Q&A endpoints
+	.post('/api/v1/chat/ask', adaptMiddleware(requireAuth), adaptMiddleware(chatStreamingRateLimit), adaptHandler(streamingChatHandler))
+	.post('/api/v1/chat/ask-sync', adaptMiddleware(requireAuth), adaptMiddleware(chatRateLimit), adaptHandler(syncChatHandler))
+	
+	// Document analysis endpoints
+	.post('/api/v1/chat/summary', adaptMiddleware(requireAuth), adaptMiddleware(chatRateLimit), adaptHandler(documentSummaryHandler))
+	.post('/api/v1/chat/suggest-questions', adaptMiddleware(requireAuth), adaptMiddleware(chatRateLimit), adaptHandler(suggestQuestionsHandler))
+	
+	// Feedback endpoints
+	.post('/api/v1/chat/feedback', adaptMiddleware(requireAuth), adaptMiddleware(feedbackRateLimit), adaptHandler(messageFeedbackHandler))
+	
+	// Chat health check
+	.get('/api/v1/chat/health', adaptHandler(chatHealthHandler))
+
 // Streaming endpoints with specific rate limiting
 router
 	.get('/api/v1/streaming/*', adaptMiddleware(streamingRateLimit), adaptHandler(streamingProxyHandler))
@@ -157,6 +202,11 @@ router
 			available_endpoints: [
 				'/health',
 				'/api/v1/health',
+				'/api/v1/upload/presigned-url',
+				'/api/v1/documents',
+				'/api/v1/chat/conversations',
+				'/api/v1/chat/ask',
+				'/api/v1/chat/sessions/:sessionId/ask',
 				'/api/v1/streaming/*',
 				'/api/*'
 			]

@@ -193,3 +193,91 @@ export async function proxyStreamingRequest(
 		throw error;
 	}
 }
+
+// Simplified proxy options interface
+interface SimpleProxyOptions {
+	endpoint: string;
+	method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+	requireAuth?: boolean;
+	isStreaming?: boolean;
+	timeout?: number;
+}
+
+/**
+ * Simplified proxy function for backend API calls
+ */
+export async function proxyToBackend(
+	request: Request,
+	context: RequestContext,
+	options: SimpleProxyOptions
+): Promise<Response> {
+	const backendUrl = context.env.BACKEND_URL || 'http://localhost:8000';
+	
+	try {
+		return await proxyRequest(request, backendUrl, context, {
+			timeout: options.timeout || 30000,
+			preserveHeaders: true,
+		});
+	} catch (error) {
+		if (error instanceof ProxyError) {
+			return new Response(
+				JSON.stringify({
+					message: error.message,
+					error_code: 'PROXY_ERROR',
+					requestId: context.requestId,
+				}),
+				{
+					status: error.status,
+					headers: { 'Content-Type': 'application/json' },
+				}
+			);
+		}
+		throw error;
+	}
+}
+
+/**
+ * Simplified streaming proxy function for backend API calls
+ */
+export async function streamProxyToBackend(
+	request: Request,
+	context: RequestContext,
+	options: SimpleProxyOptions
+): Promise<Response> {
+	const backendUrl = context.env.BACKEND_URL || 'http://localhost:8000';
+	
+	try {
+		return await proxyStreamingRequest(request, backendUrl, context, {
+			timeout: options.timeout || 60000, // Longer timeout for streaming
+			preserveHeaders: true,
+		});
+	} catch (error) {
+		if (error instanceof ProxyError) {
+			// Return streaming error format
+			const errorStream = new ReadableStream({
+				start(controller) {
+					const errorData = JSON.stringify({
+						type: 'error',
+						message: error.message,
+						error_code: 'STREAMING_PROXY_ERROR',
+						requestId: context.requestId,
+						timestamp: Date.now(),
+					});
+					controller.enqueue(new TextEncoder().encode(`data: ${errorData}\n\n`));
+					controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
+					controller.close();
+				},
+			});
+
+			return new Response(errorStream, {
+				status: error.status === 502 ? 200 : error.status, // Return 200 for streaming errors to avoid client issues
+				headers: {
+					'Content-Type': 'text/event-stream',
+					'Cache-Control': 'no-cache',
+					'Connection': 'keep-alive',
+				},
+			});
+		}
+		throw error;
+	}
+}

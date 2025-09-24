@@ -105,13 +105,13 @@
 - [x] Add embedding model version tracking
 
 ### 4.4 RAG Implementation
-- [ ] Create retrieval functions for relevant chunks
-- [ ] Implement context ranking and filtering
-- [ ] Design prompt templates for Q&A
-- [ ] Set up LLM API integration (OpenAI/Anthropic)
-- [ ] Implement streaming response handling
-- [ ] Add context window management
-- [ ] Create answer quality scoring
+- [x] Create retrieval functions for relevant chunks
+- [x] Implement context ranking and filtering
+- [x] Design prompt templates for Q&A
+- [x] Set up LLM API integration (LiteLLM)
+- [x] Implement streaming response handling
+- [x] Add context window management
+- [x] Create answer quality scoring
 
 ## Phase 5: Frontend Development
 

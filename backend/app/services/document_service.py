@@ -9,6 +9,9 @@ from datetime import datetime, timezone
 from app.models.document import Document, ProcessingStatus
 from app.schemas.document import DocumentCreate, DocumentUpdate
 from app.db.session import get_db_session
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class DocumentService:
@@ -201,3 +204,89 @@ class DocumentService:
                 'createdAt': existing_doc.created_at.isoformat() if existing_doc.created_at else None
             }
         }
+    
+    async def validate_document_ownership(self, document_id: UUID, user_id: UUID) -> Dict[str, Any]:
+        """
+        Validate that a document belongs to the specified user.
+        
+        Args:
+            document_id: UUID of the document to check
+            user_id: UUID of the user
+            
+        Returns:
+            Dictionary with document metadata if valid
+            
+        Raises:
+            ValueError: If document doesn't exist, user doesn't own it, or document isn't ready
+        """
+        logger = get_logger(__name__)
+        
+        try:
+            async with get_db_session() as session:
+                result = await session.fetchrow("""
+                    SELECT id, title, processing_status, total_chunks, user_id 
+                    FROM public.documents 
+                    WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+                """, document_id, user_id)
+                
+                if not result:
+                    raise ValueError("Document not found or access denied")
+                
+                # Check if document is ready for chat
+                if result['processing_status'] not in ['completed']:
+                    raise ValueError(f"Document is not ready for chat. Current status: {result['processing_status']}")
+                
+                if not result['total_chunks'] or result['total_chunks'] == 0:
+                    raise ValueError("Document has no processed content chunks available for chat")
+                
+                return dict(result)
+                
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.error(f"Document ownership validation failed: {str(e)}")
+            raise ValueError("Failed to validate document ownership")
+    
+    async def validate_document_exists_and_ready(self, document_id: UUID) -> Dict[str, Any]:
+        """
+        Validate that a document exists and is ready for processing (without ownership check).
+        
+        Args:
+            document_id: UUID of the document to check
+            
+        Returns:
+            Dictionary with document metadata
+            
+        Raises:
+            ValueError: If document doesn't exist or isn't ready
+        """
+        
+        try:
+            async with get_db_session() as session:
+                result = await session.fetchrow("""
+                    SELECT id, title, processing_status, total_chunks, user_id
+                    FROM public.documents 
+                    WHERE id = $1 AND deleted_at IS NULL
+                """, document_id)
+                
+                if not result:
+                    raise ValueError("Document not found")
+                
+                # Check if document is ready for chat
+                if result['processing_status'] not in ['completed']:
+                    raise ValueError(f"Document is not ready for chat. Current status: {result['processing_status']}")
+                
+                if not result['total_chunks'] or result['total_chunks'] == 0:
+                    raise ValueError("Document has no processed content chunks available for chat")
+                
+                return dict(result)
+                
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.error(f"Document validation failed: {str(e)}")
+            raise ValueError("Failed to validate document")
+
+
+# Singleton instance for application use
+document_service = DocumentService()

@@ -25,10 +25,10 @@ CREATE TABLE IF NOT EXISTS public.chat_sessions (
     -- Session configuration
     model_used VARCHAR(100), -- LLM model used for this session
     temperature FLOAT DEFAULT 0.1,
-    max_tokens INTEGER DEFAULT 4000,
+    max_tokens INTEGER DEFAULT 2000,
     
     -- Context management
-    context_window_size INTEGER DEFAULT 8000,
+    context_window_size INTEGER DEFAULT 200000,
     system_prompt TEXT,
     
     -- Timestamps

@@ -46,16 +46,6 @@ CREATE TRIGGER update_chat_sessions_updated_at
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON public.chat_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_chat_sessions_document_id ON public.chat_sessions(document_id);
-CREATE INDEX IF NOT EXISTS idx_chat_sessions_status ON public.chat_sessions(status);
-CREATE INDEX IF NOT EXISTS idx_chat_sessions_last_message_at ON public.chat_sessions(last_message_at);
-CREATE INDEX IF NOT EXISTS idx_chat_sessions_created_at ON public.chat_sessions(created_at);
-CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_document ON public.chat_sessions(user_id, document_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_chat_sessions_active ON public.chat_sessions(user_id, status, last_message_at) WHERE status = 'active';
-
--- Full-text search on title and description
-CREATE INDEX IF NOT EXISTS idx_chat_sessions_title_fts 
-    ON public.chat_sessions 
-    USING gin(to_tsvector('english', title || ' ' || COALESCE(description, '')));
 
 -- Comments
 COMMENT ON TABLE public.chat_sessions IS 'Chat conversation sessions for document interactions';

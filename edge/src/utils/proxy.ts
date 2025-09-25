@@ -65,10 +65,16 @@ export async function proxyRequest(
 		// Add request ID for tracing
 		headers.set('X-Request-ID', context.requestId);
 		
+		// Add worker secret for backend authentication
+		if (context.env.WORKER_SECRET) {
+			headers.set('X-Worker-Secret', context.env.WORKER_SECRET);
+		}
+		
 		// Add user context if available
 		if (context.user) {
 			headers.set('X-User-ID', context.user.id);
 			headers.set('X-User-Email', context.user.email);
+			headers.set('X-User-Role', context.user.role);
 		}
 
 		// Create proxy request
@@ -214,9 +220,16 @@ export async function proxyToBackend(
 	const backendUrl = context.env.BACKEND_URL || 'http://localhost:8000';
 	
 	try {
-		return await proxyRequest(request, backendUrl, context, {
+		const response = await proxyRequest(request, backendUrl, context, {
 			timeout: options.timeout || 30000,
 			preserveHeaders: true,
+		});
+		
+		// Create new response with mutable headers to avoid CORS issues
+		return new Response(response.body, {
+			status: response.status,
+			statusText: response.statusText,
+			headers: new Headers(response.headers)
 		});
 	} catch (error) {
 		if (error instanceof ProxyError) {

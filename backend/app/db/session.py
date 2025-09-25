@@ -23,6 +23,7 @@ async def create_db_pool() -> asyncpg.Pool:
                 min_size=1,
                 max_size=10,
                 command_timeout=60,
+                statement_cache_size=0,  # Disable prepared statement cache for pgbouncer compatibility
                 server_settings={
                     'jit': 'off',
                     'application_name': 'lemma-api'

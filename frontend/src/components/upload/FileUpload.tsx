@@ -7,6 +7,9 @@
 
 import React, { useState, useRef, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { Button, Badge, Card, CardContent, LoadingState, Spinner } from '@/components/ui'
+import { Stack, Flex } from '@/components/layout'
+import { ErrorMessage } from '@/components/error'
 
 interface DocumentMetadata {
   id: string
@@ -563,10 +566,11 @@ export function FileUpload({
   const isDisabled = !session?.access_token || !user
 
   return (
-    <div className={`space-y-6 ${className}`}>
+    <Stack spacing="lg" className={className}>
       {/* Upload Area */}
-      <div
-        className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+      <Card
+        variant="outlined"
+        className={`relative border-2 border-dashed text-center transition-colors cursor-pointer ${
           isDisabled
             ? 'border-gray-200 bg-gray-50 cursor-not-allowed'
             : isDragOver
@@ -576,6 +580,8 @@ export function FileUpload({
         onDragOver={!isDisabled ? handleDragOver : undefined}
         onDragLeave={!isDisabled ? handleDragLeave : undefined}
         onDrop={!isDisabled ? handleDrop : undefined}
+        onClick={() => !isDisabled && fileInputRef.current?.click()}
+        padding="lg"
       >
         <input
           ref={fileInputRef}
@@ -586,14 +592,14 @@ export function FileUpload({
           className="hidden"
         />
 
-        <div className="space-y-4">
+        <Stack spacing="md" align="center">
           <div className="flex justify-center">
             <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
           </div>
           
-          <div>
+          <div className="text-center">
             <h3 className={`text-lg font-medium ${isDisabled ? 'text-gray-500' : 'text-gray-900'}`}>
               Upload PDF Documents
             </h3>
@@ -605,90 +611,99 @@ export function FileUpload({
             </p>
           </div>
 
-          <div className="space-y-2">
-            <button
-              onClick={() => !isDisabled && fileInputRef.current?.click()}
+          <Stack spacing="sm" align="center">
+            <Button
+              variant={isDisabled ? 'secondary' : 'primary'}
               disabled={isDisabled}
-              className={`px-6 py-2 rounded-md transition-colors ${
-                isDisabled 
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-              }`}
             >
               Choose Files
-            </button>
+            </Button>
             <p className="text-xs text-gray-500">
               PDF files only • Max {Math.round(maxFileSize / (1024 * 1024))}MB per file
             </p>
-          </div>
-        </div>
-      </div>
+          </Stack>
+        </Stack>
+      </Card>
 
       {/* Upload Queue */}
       {uploadFiles.length > 0 && (
-        <div className="bg-white border rounded-lg divide-y divide-gray-200">
+        <Card variant="outlined">
           <div className="px-4 py-3 border-b border-gray-200">
             <h4 className="text-sm font-medium text-gray-900">Upload Queue</h4>
           </div>
           
-          {uploadFiles.map((uploadFile) => (
-            <div key={uploadFile.id} className="px-4 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3 flex-1 min-w-0">
-                  {getStatusIcon(uploadFile.status)}
-                  
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {uploadFile.file.name}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {formatFileSize(uploadFile.file.size)}
-                    </p>
-                    
-                    {uploadFile.error && (
-                      <p className="text-xs text-red-600 mt-1">{uploadFile.error}</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  {uploadFile.status === 'uploading' && (
-                    <div className="flex items-center space-x-2">
-                      <div className="w-24 bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${uploadFile.progress}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-gray-500 w-10">
-                        {Math.round(uploadFile.progress)}%
-                      </span>
-                    </div>
-                  )}
-
-                  {uploadFile.status === 'error' && (
-                    <button
-                      onClick={() => retryUpload(uploadFile.id)}
-                      className="text-xs text-blue-600 hover:text-blue-800"
+          <Stack spacing="none" className="divide-y divide-gray-200">
+            {uploadFiles.map((uploadFile) => (
+              <CardContent key={uploadFile.id} className="px-4 py-4">
+                <Flex justify="between" align="center">
+                  <Flex gap="md" align="center" className="flex-1 min-w-0">
+                    <Badge 
+                      variant={
+                        uploadFile.status === 'completed' ? 'success' :
+                        uploadFile.status === 'processing' ? 'info' :
+                        uploadFile.status === 'uploading' ? 'info' :
+                        uploadFile.status === 'error' ? 'error' : 'default'
+                      }
                     >
-                      Retry
-                    </button>
-                  )}
+                      {uploadFile.status}
+                    </Badge>
+                    
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {uploadFile.file.name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {formatFileSize(uploadFile.file.size)}
+                      </p>
+                      
+                      {uploadFile.error && (
+                        <p className="text-xs text-red-600 mt-1">{uploadFile.error}</p>
+                      )}
+                    </div>
+                  </Flex>
 
-                  <button
-                    onClick={() => removeFile(uploadFile.id)}
-                    className="text-gray-400 hover:text-red-500"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+                  <Flex gap="sm" align="center">
+                    {uploadFile.status === 'uploading' && (
+                      <Flex gap="sm" align="center">
+                        <div className="w-24 bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${uploadFile.progress}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-gray-500 w-10">
+                          {Math.round(uploadFile.progress)}%
+                        </span>
+                      </Flex>
+                    )}
+
+                    {uploadFile.status === 'error' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => retryUpload(uploadFile.id)}
+                      >
+                        Retry
+                      </Button>
+                    )}
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => removeFile(uploadFile.id)}
+                      className="text-gray-400 hover:text-red-500"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </Button>
+                  </Flex>
+                </Flex>
+              </CardContent>
+            ))}
+          </Stack>
+        </Card>
       )}
-    </div>
+    </Stack>
   )
 }

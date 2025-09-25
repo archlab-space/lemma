@@ -48,10 +48,6 @@ CREATE TRIGGER update_document_chunks_updated_at
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_document_chunks_document_id ON public.document_chunks(document_id);
 CREATE INDEX IF NOT EXISTS idx_document_chunks_user_id ON public.document_chunks(user_id);
-CREATE INDEX IF NOT EXISTS idx_document_chunks_chunk_index ON public.document_chunks(document_id, chunk_index);
-CREATE INDEX IF NOT EXISTS idx_document_chunks_page_number ON public.document_chunks(document_id, page_number);
-CREATE INDEX IF NOT EXISTS idx_document_chunks_section_type ON public.document_chunks(section_type);
-CREATE INDEX IF NOT EXISTS idx_document_chunks_content_length ON public.document_chunks(content_length);
 
 -- Vector similarity search index (using HNSW for fast approximate search)
 CREATE INDEX IF NOT EXISTS idx_document_chunks_embedding_hnsw 
@@ -69,10 +65,6 @@ CREATE INDEX IF NOT EXISTS idx_document_chunks_embedding_hnsw
 CREATE INDEX IF NOT EXISTS idx_document_chunks_content_fts 
     ON public.document_chunks 
     USING gin(to_tsvector('english', content));
-
--- Composite index for user-specific similarity search
-CREATE INDEX IF NOT EXISTS idx_document_chunks_user_document 
-    ON public.document_chunks(user_id, document_id, chunk_index);
 
 -- Comments
 COMMENT ON TABLE public.document_chunks IS 'Text chunks with vector embeddings for RAG retrieval';

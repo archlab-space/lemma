@@ -7,6 +7,10 @@
 
 import React, { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useApp } from '@/contexts/AppContext'
+import { Button, Input, Badge, Card, CardHeader, CardTitle, CardContent } from '@/components/ui'
+import { Stack, Flex } from '@/components/layout'
+import { ErrorMessage } from '@/components/error'
 
 interface UserProfileProps {
   onUpdate?: () => void
@@ -14,6 +18,7 @@ interface UserProfileProps {
 
 export function UserProfile({ onUpdate }: UserProfileProps) {
   const { user } = useAuth()
+  const { updateUserProfile, addNotification } = useApp()
   const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -31,17 +36,16 @@ export function UserProfile({ onUpdate }: UserProfileProps) {
     setSuccess(null)
     
     try {
-      // TODO: Implement profile update API call
-      // const { error } = await updateUserProfile(profileData)
-      
-      // Simulate API call for now
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await updateUserProfile({
+        fullName: profileData.full_name,
+      })
       
       setSuccess('Profile updated successfully')
       setIsEditing(false)
       onUpdate?.()
     } catch (err) {
-      setError('Failed to update profile')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update profile'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -81,26 +85,23 @@ export function UserProfile({ onUpdate }: UserProfileProps) {
   const { provider, providers, isOAuth } = getProviderInfo()
 
   return (
-    <div className="bg-white shadow rounded-lg">
-      <div className="px-6 py-4 border-b border-gray-200">
-        <h3 className="text-lg font-medium text-gray-900">Profile Information</h3>
+    <Card variant="elevated">
+      <CardHeader>
+        <CardTitle>Profile Information</CardTitle>
         <p className="text-sm text-gray-500">Manage your account details and preferences</p>
-      </div>
+      </CardHeader>
 
-      <div className="px-6 py-4">
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-sm text-red-600">{error}</p>
-          </div>
-        )}
+      <CardContent>
+        <Stack spacing="md">
+          {error && <ErrorMessage message={error} onDismiss={() => setError(null)} />}
+          
+          {success && (
+            <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+              <p className="text-sm text-green-600">{success}</p>
+            </div>
+          )}
 
-        {success && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
-            <p className="text-sm text-green-600">{success}</p>
-          </div>
-        )}
-
-        <div className="space-y-6">
+          <Stack spacing="lg">
           {/* Avatar Section */}
           <div className="flex items-center space-x-6">
             <div className="flex-shrink-0">
@@ -133,21 +134,23 @@ export function UserProfile({ onUpdate }: UserProfileProps) {
 
           {/* Full Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Full Name
-            </label>
             {isEditing ? (
-              <input
+              <Input
+                label="Full Name"
                 type="text"
                 value={profileData.full_name}
                 onChange={(e) => setProfileData(prev => ({ ...prev, full_name: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter your full name"
               />
             ) : (
-              <p className="text-sm text-gray-900">
-                {profileData.full_name || 'Not provided'}
-              </p>
+              <>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Full Name
+                </label>
+                <p className="text-sm text-gray-900">
+                  {profileData.full_name || 'Not provided'}
+                </p>
+              </>
             )}
           </div>
 
@@ -167,16 +170,16 @@ export function UserProfile({ onUpdate }: UserProfileProps) {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Account Type
             </label>
-            <div className="flex items-center space-x-2">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+            <Flex gap="sm" align="center">
+              <Badge variant="info">
                 {isOAuth ? `${provider} OAuth` : 'Email Account'}
-              </span>
+              </Badge>
               {providers.length > 1 && (
                 <span className="text-xs text-gray-500">
                   +{providers.length - 1} other method{providers.length > 2 ? 's' : ''}
                 </span>
               )}
-            </div>
+            </Flex>
           </div>
 
           {/* Account Created */}
@@ -188,37 +191,39 @@ export function UserProfile({ onUpdate }: UserProfileProps) {
               {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
             </p>
           </div>
-        </div>
+          </Stack>
 
-        {/* Action Buttons */}
-        <div className="mt-6 flex justify-end space-x-3">
-          {isEditing ? (
-            <>
-              <button
-                onClick={handleCancel}
-                disabled={loading}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          {/* Action Buttons */}
+          <Flex justify="end" gap="md">
+            {isEditing ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleCancel}
+                  disabled={loading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={handleSave}
+                  disabled={loading}
+                  loading={loading}
+                >
+                  Save Changes
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="primary"
+                onClick={() => setIsEditing(true)}
               >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
-              >
-                {loading ? 'Saving...' : 'Save Changes'}
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
-            >
-              Edit Profile
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
+                Edit Profile
+              </Button>
+            )}
+          </Flex>
+        </Stack>
+      </CardContent>
+    </Card>
   )
 }

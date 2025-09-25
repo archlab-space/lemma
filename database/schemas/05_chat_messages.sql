@@ -62,22 +62,6 @@ CREATE TRIGGER update_chat_messages_updated_at
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON public.chat_messages(session_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_user_id ON public.chat_messages(user_id);
-CREATE INDEX IF NOT EXISTS idx_chat_messages_role ON public.chat_messages(role);
-CREATE INDEX IF NOT EXISTS idx_chat_messages_sequence ON public.chat_messages(session_id, sequence_number);
-CREATE INDEX IF NOT EXISTS idx_chat_messages_status ON public.chat_messages(status);
-CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON public.chat_messages(created_at);
-CREATE INDEX IF NOT EXISTS idx_chat_messages_retrieved_chunks ON public.chat_messages USING gin(retrieved_chunks);
-CREATE INDEX IF NOT EXISTS idx_chat_messages_user_rating ON public.chat_messages(user_rating) WHERE user_rating IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_chat_messages_parent ON public.chat_messages(parent_message_id);
-
--- Full-text search on content
-CREATE INDEX IF NOT EXISTS idx_chat_messages_content_fts 
-    ON public.chat_messages 
-    USING gin(to_tsvector('english', content));
-
--- Composite index for session message ordering
-CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_messages_session_sequence 
-    ON public.chat_messages(session_id, sequence_number);
 
 -- Comments
 COMMENT ON TABLE public.chat_messages IS 'Individual messages within chat sessions';

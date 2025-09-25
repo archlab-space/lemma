@@ -2,7 +2,7 @@
 LLM client utilities for the Lemma application.
 """
 
-from typing import Optional, type_check_only
+from typing import Optional
 import litellm
 from pydantic import BaseModel
 

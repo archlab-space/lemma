@@ -38,42 +38,15 @@ CREATE POLICY "Users can view their own documents" ON public.documents
 CREATE POLICY "Users can view chunks from their own documents" ON public.document_chunks
     FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert chunks for their own documents" ON public.document_chunks
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update chunks from their own documents" ON public.document_chunks
-    FOR UPDATE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete chunks from their own documents" ON public.document_chunks
-    FOR DELETE USING (auth.uid() = user_id);
-
 -- Chat sessions table policies
 -- Users can only access their own chat sessions
 CREATE POLICY "Users can view their own chat sessions" ON public.chat_sessions
     FOR SELECT USING (auth.uid() = user_id AND status != 'deleted');
 
-CREATE POLICY "Users can insert their own chat sessions" ON public.chat_sessions
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update their own chat sessions" ON public.chat_sessions
-    FOR UPDATE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete their own chat sessions" ON public.chat_sessions
-    FOR DELETE USING (auth.uid() = user_id);
-
 -- Chat messages table policies
 -- Users can only access messages from their own chat sessions
 CREATE POLICY "Users can view their own chat messages" ON public.chat_messages
     FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert their own chat messages" ON public.chat_messages
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update their own chat messages" ON public.chat_messages
-    FOR UPDATE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete their own chat messages" ON public.chat_messages
-    FOR DELETE USING (auth.uid() = user_id);
 
 -- Create a function to automatically create user profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()

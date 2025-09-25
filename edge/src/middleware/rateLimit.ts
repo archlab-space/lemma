@@ -118,7 +118,7 @@ export function createRateLimitMiddleware(config: RateLimitConfig): Middleware {
 // Pre-configured rate limit middleware
 export const apiRateLimit = createRateLimitMiddleware({
 	windowMs: 15 * 60 * 1000, // 15 minutes
-	maxRequests: 100, // 100 requests per 15 minutes
+	maxRequests: 1000, // 100 requests per 15 minutes
 });
 
 export const streamingRateLimit = createRateLimitMiddleware({
@@ -134,7 +134,7 @@ export const chatRateLimit = createRateLimitMiddleware({
 
 export const conversationRateLimit = createRateLimitMiddleware({
 	windowMs: 10 * 60 * 1000, // 10 minutes
-	maxRequests: 20, // 20 conversation operations per 10 minutes (CRUD)
+	maxRequests: 2000, // 20 conversation operations per 10 minutes (CRUD)
 });
 
 export const chatStreamingRateLimit = createRateLimitMiddleware({

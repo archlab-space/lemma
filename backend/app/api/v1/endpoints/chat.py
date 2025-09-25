@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from app.core.dependencies import get_current_user_from_headers
+from app.core.dependencies import get_current_user_id
 from app.core.logging import get_logger
 from app.services.rag_service import rag_service, AnswerQuality
 from app.services.document_service import document_service
@@ -163,23 +163,21 @@ class SessionQuestionRequest(BaseModel):
 async def ask_question_in_session(
     session_id: UUID,
     request: SessionQuestionRequest,
-    current_user: User = Depends(get_current_user_from_headers)
+    user_id: str = Depends(get_current_user_id)
 ):
     """
     Ask a question in a specific chat session with streaming response.
     
     This endpoint provides session-aware RAG with conversation history.
     """
-    try:
-        logger.info(f"User {current_user.id} asking in session {session_id}: {request.question[:100]}...")
-        
+    try:        
         async def generate_streaming_response():
             """Generate streaming response from RAG service with session context."""
             try:
                 async for token in rag_service.ask_question_with_session(
                     question=request.question,
                     session_id=session_id,
-                    user_id=current_user.id,
+                    user_id=UUID(user_id),
                     streaming=True
                 ):
                     # Format as Server-Sent Events (SSE)
@@ -211,7 +209,7 @@ async def ask_question_in_session(
 @router.post("/ask", response_model=None)
 async def ask_question_streaming(
     message: ChatMessage,
-    current_user: User = Depends(get_current_user_from_headers)
+    user_id: str = Depends(get_current_user_id)
 ):
     """
     Ask a question about document(s) with streaming response.
@@ -219,12 +217,10 @@ async def ask_question_streaming(
     This endpoint provides real-time streaming responses for a better user experience.
     Note: For conversation history, use the /sessions/{session_id}/ask endpoint instead.
     """
-    try:
-        logger.info(f"User {current_user.id} asked: {message.question[:100]}...")
-        
+    try:        
         # Validate document ownership if document_id is specified
         if message.document_id:
-            await validate_document_ownership(message.document_id, current_user.id)
+            await validate_document_ownership(message.document_id, UUID(user_id))
         
         async def generate_streaming_response():
             """Generate streaming response from RAG service."""
@@ -265,7 +261,7 @@ async def ask_question_streaming(
 @router.post("/ask-sync", response_model=ChatResponse)
 async def ask_question_sync(
     message: ChatMessage,
-    current_user: User = Depends(get_current_user_from_headers),
+    current_user: dict = Depends(get_current_user_id),
     include_quality: bool = Query(False, description="Include answer quality assessment")
 ):
     """
@@ -278,11 +274,11 @@ async def ask_question_sync(
         import time
         start_time = time.time()
         
-        logger.info(f"User {current_user.id} asked (sync): {message.question[:100]}...")
+        logger.info(f"User {current_user['id']} asked (sync): {message.question[:100]}...")
         
         # Validate document ownership if document_id is specified
         if message.document_id:
-            await validate_document_ownership(message.document_id, current_user.id)
+            await validate_document_ownership(message.document_id, current_user["id"])
         
         # Get complete response with context chunks
         answer, context_chunks = await rag_service.ask_question_sync_with_context(
@@ -325,7 +321,7 @@ async def ask_question_sync(
 @router.post("/summary", response_model=SummaryResponse)
 async def get_document_summary(
     request: DocumentSummaryRequest,
-    current_user: User = Depends(get_current_user_from_headers)
+    user_id: str = Depends(get_current_user_id)
 ):
     """
     Generate a comprehensive summary of a document using RAG.
@@ -333,11 +329,9 @@ async def get_document_summary(
     try:
         import time
         start_time = time.time()
-        
-        logger.info(f"User {current_user.id} requested summary for document {request.document_id}")
-        
+                
         # Validate document ownership
-        await validate_document_ownership(request.document_id, current_user.id)
+        await validate_document_ownership(request.document_id, UUID(user_id))
         
         summary = await rag_service.get_document_summary(request.document_id)
         processing_time = (time.time() - start_time) * 1000
@@ -356,16 +350,14 @@ async def get_document_summary(
 @router.post("/suggest-questions", response_model=SuggestedQuestionsResponse)
 async def get_suggested_questions(
     request: DocumentQuestionsRequest,
-    current_user: User = Depends(get_current_user_from_headers)
+    user_id: str = Depends(get_current_user_id)
 ):
     """
     Get AI-suggested questions for a document to help users get started.
     """
-    try:
-        logger.info(f"User {current_user.id} requested questions for document {request.document_id}")
-        
+    try:        
         # Validate document ownership
-        await validate_document_ownership(request.document_id, current_user.id)
+        await validate_document_ownership(request.document_id, UUID(user_id))
         
         questions = await rag_service.suggest_questions(request.document_id)
         
@@ -397,18 +389,16 @@ async def chat_health():
 @router.post("/conversations", response_model=ConversationResponse)
 async def create_conversation(
     request: ConversationCreateRequest,
-    current_user: User = Depends(get_current_user_from_headers)
+    user_id: str = Depends(get_current_user_id)
 ):
     """Create a new chat conversation."""
     try:
         from app.db.session import get_db_session
         import uuid
         from datetime import datetime
-        
-        logger.info(f"User {current_user.id} creating conversation for document {request.document_id}")
-        
+                
         # Validate document ownership and readiness
-        await validate_document_ownership(request.document_id, current_user.id)
+        await validate_document_ownership(request.document_id, UUID(user_id))
         
         # Generate conversation title if not provided
         title = request.title or f"Chat - {datetime.now().strftime('%Y-%m-%d %H:%M')}"
@@ -423,7 +413,7 @@ async def create_conversation(
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             """, 
                 conversation_id,
-                current_user.id,
+                UUID(user_id),
                 request.document_id,
                 title,
                 request.description,
@@ -466,7 +456,7 @@ async def create_conversation(
 
 @router.get("/conversations", response_model=ConversationListResponse)
 async def list_conversations(
-    current_user: User = Depends(get_current_user_from_headers),
+    user_id: str = Depends(get_current_user_id),
     document_id: Optional[UUID] = Query(None, description="Filter by document ID"),
     status: Optional[str] = Query("active", description="Filter by status"),
     page: int = Query(1, ge=1, description="Page number"),
@@ -481,7 +471,7 @@ async def list_conversations(
         async with get_db_session() as session:
             # Build query conditions
             where_conditions = ["user_id = $1"]
-            params: List[Any] = [current_user.id]
+            params: List[Any] = [UUID(user_id)]
             param_count = 1
             
             if document_id:
@@ -548,7 +538,7 @@ async def list_conversations(
 @router.get("/conversations/{conversation_id}", response_model=ConversationHistoryResponse)
 async def get_conversation_history(
     conversation_id: UUID,
-    current_user: User = Depends(get_current_user_from_headers),
+    user_id: str = Depends(get_current_user_id),
     limit: int = Query(50, ge=1, le=200, description="Maximum messages to return")
 ):
     """Get conversation history with messages."""
@@ -560,7 +550,7 @@ async def get_conversation_history(
             conversation_result = await session.fetchrow("""
                 SELECT * FROM public.chat_sessions 
                 WHERE id = $1 AND user_id = $2
-            """, conversation_id, current_user.id)
+            """, conversation_id, UUID(user_id))
             
             if not conversation_result:
                 raise HTTPException(status_code=404, detail="Conversation not found")
@@ -631,7 +621,7 @@ async def get_conversation_history(
 @router.delete("/conversations/{conversation_id}")
 async def delete_conversation(
     conversation_id: UUID,
-    current_user: User = Depends(get_current_user_from_headers),
+    user_id: str = Depends(get_current_user_id),
     permanent: bool = Query(False, description="Permanently delete instead of soft delete")
 ):
     """Delete or archive a conversation."""
@@ -644,7 +634,7 @@ async def delete_conversation(
             conversation_result = await session.fetchrow("""
                 SELECT id FROM public.chat_sessions 
                 WHERE id = $1 AND user_id = $2
-            """, conversation_id, current_user.id)
+            """, conversation_id, UUID(user_id))
             
             if not conversation_result:
                 raise HTTPException(status_code=404, detail="Conversation not found")
@@ -676,7 +666,7 @@ async def delete_conversation(
 @router.post("/feedback")
 async def submit_message_feedback(
     request: MessageFeedbackRequest,
-    current_user: User = Depends(get_current_user_from_headers)
+    user_id: str = Depends(get_current_user_id)
 ):
     """Submit feedback for a message."""
     try:
@@ -688,7 +678,7 @@ async def submit_message_feedback(
                 SELECT cm.id FROM public.chat_messages cm
                 JOIN public.chat_sessions cs ON cm.session_id = cs.id
                 WHERE cm.id = $1 AND cs.user_id = $2
-            """, request.message_id, current_user.id)
+            """, request.message_id, UUID(user_id))
             
             if not message_result:
                 raise HTTPException(status_code=404, detail="Message not found")
@@ -700,7 +690,7 @@ async def submit_message_feedback(
                 WHERE id = $1
             """, request.message_id, request.rating, request.feedback, request.is_helpful)
             
-            logger.info(f"User {current_user.id} submitted feedback for message {request.message_id}")
+            logger.info(f"User {UUID(user_id)} submitted feedback for message {request.message_id}")
             return {"message": "Feedback submitted successfully"}
             
     except HTTPException:

@@ -17,9 +17,10 @@ from app.services.document_service import DocumentService
 from app.services.document_processor import document_processor
 from app.models.document import ProcessingStatus
 from app.core.dependencies import get_current_user_id, get_current_user_from_headers
-
+from app.core.logging import get_logger
 
 router = APIRouter()
+logger = get_logger(__name__)
 
 
 @router.post("/check-duplicate")
@@ -191,6 +192,7 @@ async def get_documents(
         }
         
     except Exception as e:
+        logger.error(f"Get documents failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch documents: {str(e)}")
 
 

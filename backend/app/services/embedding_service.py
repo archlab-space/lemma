@@ -1,14 +1,12 @@
 """
 Embedding Service for Lemma
-Handles text embedding generation using sentence-transformers.
+Handles text embedding generation using LiteLLM with OpenAI embeddings.
 """
 
 import asyncio
 import hashlib
-from typing import List, Dict, Any, Optional, Tuple
-from concurrent.futures import ThreadPoolExecutor
-import numpy as np
-from sentence_transformers import SentenceTransformer
+from typing import List, Dict, Any, Optional
+import litellm
 
 from app.core.logging import get_logger
 from app.core.config import get_settings
@@ -19,11 +17,10 @@ settings = get_settings()
 
 class EmbeddingConfig:
     """Configuration for embedding generation."""
-    DEFAULT_MODEL = getattr(settings, 'EMBEDDING_MODEL', 'all-MiniLM-L6-v2')
-    MAX_WORKERS = getattr(settings, 'EMBEDDING_MAX_WORKERS', 2)
-    BATCH_SIZE = getattr(settings, 'EMBEDDING_BATCH_SIZE', 32)
-    MAX_SEQ_LENGTH = getattr(settings, 'EMBEDDING_MAX_SEQ_LENGTH', 512)
-    VECTOR_DIMENSION = 384  # for all-MiniLM-L6-v2
+    DEFAULT_MODEL = getattr(settings, 'EMBEDDING_MODEL', 'text-embedding-3-small')
+    BATCH_SIZE = getattr(settings, 'EMBEDDING_BATCH_SIZE', 100)  # OpenAI allows larger batches
+    VECTOR_DIMENSION = 1536  # for text-embedding-3-small
+    MAX_RETRIES = getattr(settings, 'EMBEDDING_MAX_RETRIES', 3)
 
 
 class EmbeddingError(Exception):
@@ -33,49 +30,34 @@ class EmbeddingError(Exception):
 
 class EmbeddingService:
     """
-    Service for generating text embeddings using sentence-transformers.
+    Service for generating text embeddings using LiteLLM with OpenAI.
     
     Features:
-    - Async embedding generation with thread pool
+    - Async embedding generation with LiteLLM
     - Batch processing for efficiency
     - Model version tracking
-    - Caching and deduplication
+    - Error handling and retries
     """
     
     def __init__(self, model_name: Optional[str] = None):
         self.model_name = model_name or EmbeddingConfig.DEFAULT_MODEL
         self.vector_dimension = EmbeddingConfig.VECTOR_DIMENSION
-        self.executor = ThreadPoolExecutor(max_workers=EmbeddingConfig.MAX_WORKERS)
-        self._model: Optional[SentenceTransformer] = None
         self._model_version: Optional[str] = None
+        self._api_key: Optional[str] = None
         
     async def initialize(self):
-        """Initialize the embedding model asynchronously."""
-        if self._model is None:
-            logger.info(f"Loading embedding model: {self.model_name}")
-            loop = asyncio.get_event_loop()
-            self._model = await loop.run_in_executor(
-                self.executor, 
-                self._load_model
-            )
+        """Initialize the embedding service."""
+        if self._api_key is None:
+            self._api_key = getattr(settings, 'OPENAI_API_KEY', None)
+            if not self._api_key:
+                raise EmbeddingError("OPENAI_API_KEY not configured")
+            
             self._model_version = self._get_model_version()
-            logger.info(f"Embedding model loaded successfully. Version: {self._model_version}")
-    
-    def _load_model(self) -> SentenceTransformer:
-        """Load the sentence transformer model (runs in thread pool)."""
-        try:
-            model = SentenceTransformer(self.model_name)
-            # Set max sequence length if specified
-            if hasattr(model, 'max_seq_length'):
-                model.max_seq_length = EmbeddingConfig.MAX_SEQ_LENGTH
-            return model
-        except Exception as e:
-            raise EmbeddingError(f"Failed to load embedding model {self.model_name}: {str(e)}") from e
+            logger.info(f"Embedding service initialized with model: {self.model_name}")
     
     def _get_model_version(self) -> str:
         """Generate a version hash for the current model."""
-        # Create a hash based on model name and key parameters
-        version_string = f"{self.model_name}_{EmbeddingConfig.MAX_SEQ_LENGTH}_{EmbeddingConfig.VECTOR_DIMENSION}"
+        version_string = f"{self.model_name}_{EmbeddingConfig.VECTOR_DIMENSION}"
         return hashlib.md5(version_string.encode()).hexdigest()[:8]
     
     async def generate_embedding(self, text: str) -> List[float]:
@@ -98,7 +80,7 @@ class EmbeddingService:
         
         await self.initialize()
         
-        # Process in batches for memory efficiency
+        # Process in batches for API efficiency
         all_embeddings = []
         batch_size = EmbeddingConfig.BATCH_SIZE
         
@@ -112,37 +94,37 @@ class EmbeddingService:
         return all_embeddings
     
     async def _generate_batch_embeddings(self, texts: List[str]) -> List[List[float]]:
-        """Generate embeddings for a batch of texts."""
-        loop = asyncio.get_event_loop()
+        """Generate embeddings for a batch of texts using LiteLLM."""
+        retries = 0
+        last_error = None
         
-        try:
-            embeddings = await loop.run_in_executor(
-                self.executor,
-                self._encode_batch,
-                texts
-            )
-            
-            # Convert to list of lists for JSON serialization
-            return [embedding.tolist() for embedding in embeddings]
-            
-        except Exception as e:
-            raise EmbeddingError(f"Failed to generate embeddings: {str(e)}") from e
-    
-    def _encode_batch(self, texts: List[str]) -> np.ndarray:
-        """Encode batch of texts using the model (runs in thread pool)."""
-        if self._model is None:
-            raise EmbeddingError("Model not initialized")
+        while retries < EmbeddingConfig.MAX_RETRIES:
+            try:
+                response = await litellm.aembedding(
+                    model=self.model_name,
+                    input=texts,
+                    api_key=self._api_key
+                )
+                
+                # Extract embeddings from response
+                embeddings = []
+                for data_item in response.data:
+                    embeddings.append(data_item.embedding)
+                
+                return embeddings
+                
+            except Exception as e:
+                retries += 1
+                last_error = e
+                logger.warning(f"Embedding attempt {retries} failed: {str(e)}")
+                
+                if retries < EmbeddingConfig.MAX_RETRIES:
+                    # Exponential backoff
+                    wait_time = 2 ** retries
+                    await asyncio.sleep(wait_time)
+                    logger.debug(f"Retrying in {wait_time} seconds...")
         
-        try:
-            embeddings = self._model.encode(
-                texts,
-                convert_to_numpy=True,
-                normalize_embeddings=True,  # Normalize for cosine similarity
-                show_progress_bar=False
-            )
-            return embeddings
-        except Exception as e:
-            raise EmbeddingError(f"Model encoding failed: {str(e)}") from e
+        raise EmbeddingError(f"Failed to generate embeddings after {EmbeddingConfig.MAX_RETRIES} retries: {str(last_error)}") from last_error
     
     async def generate_chunk_embeddings(self, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
@@ -194,15 +176,12 @@ class EmbeddingService:
             "model_name": self.model_name,
             "model_version": self._model_version,
             "vector_dimension": self.vector_dimension,
-            "max_seq_length": EmbeddingConfig.MAX_SEQ_LENGTH,
-            "is_initialized": self._model is not None
+            "is_initialized": self._api_key is not None
         }
     
     async def cleanup(self):
         """Cleanup resources."""
-        if hasattr(self, 'executor'):
-            self.executor.shutdown(wait=True)
-            logger.debug("Embedding service resources cleaned up")
+        logger.debug("Embedding service resources cleaned up")
 
 
 # Singleton instance for application use

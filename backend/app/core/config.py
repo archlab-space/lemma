@@ -52,14 +52,14 @@ class Settings(BaseSettings):
     DATABASE_URL: str | None = None
     
     # Object Storage Configuration (Cloudflare R2)
-    R2_BUCKET_NAME: str = "placeholder-bucket"
+    R2_BUCKET_NAME: str = "lemma-documents"
     R2_ACCESS_KEY_ID: str = "placeholder_access_key"
     R2_SECRET_ACCESS_KEY: str = "placeholder_secret_key"
-    R2_ENDPOINT: str = "https://placeholder.r2.cloudflarestorage.com"
+    R2_ENDPOINT: str = "https://b49337c8c317194c858bde1373b9aac3.r2.cloudflarestorage.com"
     
     # LLM API Configuration
     OPENAI_API_KEY: str | None = None
-    ANTHROPIC_API_KEY: str | None = None
+    OPENROUTER_API_KEY: str | None = None
     
     # Default LLM Settings
     DEFAULT_LLM_MODEL: str = "gpt-3.5-turbo"

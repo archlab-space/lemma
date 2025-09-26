@@ -6,11 +6,17 @@ Handles the complete document processing pipeline from upload to ready-for-RAG.
 import asyncio
 import os
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, TYPE_CHECKING, cast
 from uuid import UUID
 import tempfile
 import httpx
+import aioboto3
+from botocore.config import Config
+from botocore.exceptions import ClientError, NoCredentialsError
 from datetime import datetime
+
+if TYPE_CHECKING:
+    from typing import Any
 
 from app.services.pdf_processor import PDFProcessor
 from app.services.document_service import DocumentService
@@ -36,12 +42,48 @@ class DocumentProcessor:
         self.pdf_processor = PDFProcessor()
         self.document_service = DocumentService()
         
-    async def download_file_from_r2(self, storage_path: str) -> str:
-        """Download file from R2 storage to temporary location."""
+        # Initialize async boto3 session for R2
+        self.session = aioboto3.Session(
+            aws_access_key_id=settings.R2_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
+            region_name='auto',  # R2 uses 'auto' region
+        )
+        
+        # R2 client config
+        self.r2_config = Config(
+            retries={'max_attempts': 3},
+            s3={'addressing_style': 'path'}  # Use path-style URLs for R2
+        )
+    
+    async def _check_file_exists(self, storage_path: str) -> bool:
+        """Check if file exists in R2 storage."""
         try:
-            # Construct R2 URL
-            r2_url = f"{settings.R2_ENDPOINT}/{settings.R2_BUCKET_NAME}/{storage_path}"
+            async with self.session.client( # type: ignore
+                's3',
+                endpoint_url=settings.R2_ENDPOINT,
+                config=self.r2_config
+            ) as s3_client:
+                await s3_client.head_object(
+                    Bucket=settings.R2_BUCKET_NAME,
+                    Key=storage_path
+                )
+                return True
+        except ClientError as e:
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+            if error_code == 'NoSuchKey':
+                logger.error(f"File not found in R2: {storage_path}")
+                return False
+            else:
+                logger.error(f"Error checking file existence: {error_code}")
+                return False
+        except Exception as e:
+            logger.error(f"Unexpected error checking file existence: {str(e)}")
+            return False
             
+    async def download_file_from_r2(self, storage_path: str) -> str:
+        """Download file from R2 storage to temporary location using aioboto3."""
+        temp_path = None
+        try:
             # Create temporary file
             temp_file = tempfile.NamedTemporaryFile(
                 delete=False, 
@@ -51,20 +93,59 @@ class DocumentProcessor:
             temp_path = temp_file.name
             temp_file.close()
             
-            # Download file
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(r2_url)
-                response.raise_for_status()
-                
-                # Write to temporary file
-                with open(temp_path, 'wb') as f:
-                    f.write(response.content)
+            logger.info(f"Downloading file from R2: bucket={settings.R2_BUCKET_NAME}, key={storage_path}")
             
-            logger.info(f"Downloaded file from R2: {storage_path} -> {temp_path}")
+            # Check if file exists first
+            if not await self._check_file_exists(storage_path):
+                raise ValueError(f"File not found in R2 storage: {storage_path}")
+            
+            # Download file using aioboto3
+            async with self.session.client( # type: ignore
+                's3',
+                endpoint_url=settings.R2_ENDPOINT,
+                config=self.r2_config
+            ) as s3_client:
+                # Download file directly using aioboto3
+                await s3_client.download_file(
+                    settings.R2_BUCKET_NAME,
+                    storage_path,
+                    temp_path
+                )
+            
+            # Verify file was downloaded
+            if not os.path.exists(temp_path) or os.path.getsize(temp_path) == 0:
+                raise ValueError(f"Downloaded file is empty or doesn't exist: {temp_path}")
+            
+            logger.info(f"Successfully downloaded file from R2 via aioboto3: {storage_path} -> {temp_path} ({os.path.getsize(temp_path)} bytes)")
             return temp_path
+                
+        except ClientError as e:
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+            error_message = e.response.get('Error', {}).get('Message', str(e))
+            logger.error(f"R2 Client Error downloading {storage_path}: {error_code} - {error_message}")
+            
+            # Clean up temp file on error
+            if temp_path and os.path.exists(temp_path):
+                os.unlink(temp_path)
+                
+            raise ValueError(f"Failed to download from R2: {error_code} - {error_message}")
+            
+        except NoCredentialsError:
+            logger.error("R2 credentials not found or invalid")
+            if temp_path and os.path.exists(temp_path):
+                os.unlink(temp_path)
+            raise ValueError("R2 credentials not configured properly")
+            
+        except httpx.HTTPError as e:
+            logger.error(f"HTTP error downloading from R2: {storage_path} - {str(e)}")
+            if temp_path and os.path.exists(temp_path):
+                os.unlink(temp_path)
+            raise ValueError(f"HTTP download failed: {str(e)}")
             
         except Exception as e:
-            logger.error(f"Failed to download file from R2: {storage_path} - {str(e)}")
+            logger.error(f"Unexpected error downloading file from R2: {storage_path} - {str(e)}")
+            if temp_path and os.path.exists(temp_path):
+                os.unlink(temp_path)
             raise
 
     async def process_document(self, document_id: UUID) -> Dict[str, Any]:
@@ -103,7 +184,7 @@ class DocumentProcessor:
             ai_enhancement_status = processing_result.get("ai_enhancement_status", {"success": False, "error": None})
             
             # Process chunks through embedding pipeline
-            chunk_processing_result = await chunk_processor.process_document_chunks(document_id, chunks)
+            chunk_processing_result = await chunk_processor.process_document_chunks(document_id, document.user_id, chunks)
             chunk_count = chunk_processing_result.get('stored_chunks', 0)
             embedding_status = chunk_processing_result.get('embedding_status', {})
             

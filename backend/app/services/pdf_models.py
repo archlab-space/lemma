@@ -22,7 +22,7 @@ class ProcessingConfig:
     BATCH_SIZE = getattr(settings, 'PDF_BATCH_SIZE', 5)
     LLM_MAX_RETRIES = getattr(settings, 'PDF_LLM_MAX_RETRIES', 3)
     LLM_RETRY_DELAY = getattr(settings, 'PDF_LLM_RETRY_DELAY', 1.0)
-    DEFAULT_LLM_MODEL = getattr(settings, 'PDF_DEFAULT_LLM_MODEL', 'openai/gpt-4')
+    DEFAULT_LLM_MODEL = getattr(settings, 'PDF_DEFAULT_LLM_MODEL', 'openrouter/openai/gpt-5')
 
 
 class ProcessingError(Exception):

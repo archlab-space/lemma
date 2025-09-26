@@ -235,7 +235,8 @@ class PDFAIEnricher:
                 prompt, 
                 ComprehensiveAnalysis, 
                 max_tokens=8192, 
-                model=ProcessingConfig.DEFAULT_LLM_MODEL
+                model=ProcessingConfig.DEFAULT_LLM_MODEL,
+                temperature=1
             )
             return result  # type: ignore  # We know this is ComprehensiveAnalysis
             

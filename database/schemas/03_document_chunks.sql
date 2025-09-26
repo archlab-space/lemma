@@ -8,17 +8,17 @@ CREATE TABLE IF NOT EXISTS public.document_chunks (
     
     -- Chunk content and metadata
     content TEXT NOT NULL,
-    content_length INTEGER NOT NULL,
     chunk_index INTEGER NOT NULL, -- Order within document
     
-    -- Page and section information
+    -- Page information
     page_number INTEGER,
-    section_title TEXT,
-    section_type VARCHAR(50), -- 'abstract', 'introduction', 'methodology', 'results', 'conclusion', 'references', etc.
+    
+    -- Content metrics
+    word_count INTEGER,
+    char_count INTEGER,
     
     -- Vector embeddings (using pg_vector extension)
     embedding VECTOR(1536), -- OpenAI text-embedding-3-small dimension
-    -- embedding VECTOR(768), -- Alternative: sentence-transformers dimension
     
     -- Chunk processing metadata
     embedding_model VARCHAR(100) NOT NULL DEFAULT 'text-embedding-3-small',
@@ -27,13 +27,8 @@ CREATE TABLE IF NOT EXISTS public.document_chunks (
     -- Content tokens (for LLM context management)
     token_count INTEGER,
     
-    -- Overlap information (for context preservation)
-    overlap_before INTEGER DEFAULT 0, -- Characters overlapping with previous chunk
-    overlap_after INTEGER DEFAULT 0,  -- Characters overlapping with next chunk
-    
-    -- Quality metrics
-    semantic_density FLOAT, -- Measure of information density
-    readability_score FLOAT, -- Text readability score
+    -- Additional metadata as JSON
+    metadata JSONB,
     
     -- Timestamps
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
@@ -70,6 +65,7 @@ CREATE INDEX IF NOT EXISTS idx_document_chunks_content_fts
 COMMENT ON TABLE public.document_chunks IS 'Text chunks with vector embeddings for RAG retrieval';
 COMMENT ON COLUMN public.document_chunks.embedding IS 'Vector embedding for semantic similarity search';
 COMMENT ON COLUMN public.document_chunks.chunk_index IS 'Sequential order of chunk within document';
-COMMENT ON COLUMN public.document_chunks.overlap_before IS 'Characters overlapping with previous chunk for context preservation';
-COMMENT ON COLUMN public.document_chunks.semantic_density IS 'Measure of information density in the chunk';
+COMMENT ON COLUMN public.document_chunks.word_count IS 'Number of words in the chunk';
+COMMENT ON COLUMN public.document_chunks.char_count IS 'Number of characters in the chunk';
 COMMENT ON COLUMN public.document_chunks.token_count IS 'Number of tokens for LLM context management';
+COMMENT ON COLUMN public.document_chunks.metadata IS 'Additional chunk metadata as JSON';

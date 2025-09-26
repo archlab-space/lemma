@@ -29,12 +29,12 @@ async def call_llm_structured(
 ) -> BaseModel:
     """Call LLM using LiteLLM with structured output."""
     try:
-        model_val: str = model if model is not None else getattr(settings, 'PDF_DEFAULT_LLM_MODEL', 'openai/gpt-5')
+        model_val: str = model if model is not None else getattr(settings, 'PDF_DEFAULT_LLM_MODEL', 'openrouter/openai/gpt-5')
         
         # Use OpenAI API key from settings
-        api_key = getattr(settings, 'OPENAI_API_KEY', None)
+        api_key = getattr(settings, 'OPENROUTER_API_KEY', None)
         if not api_key:
-            raise LLMError("OPENAI_API_KEY not configured")
+            raise LLMError("OPENROUTER_API_KEY not configured")
             
         response = await litellm.acompletion(
             model=model_val,

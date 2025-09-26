@@ -30,7 +30,7 @@ class RAGConfig:
     MIN_SIMILARITY_THRESHOLD = getattr(settings, 'RAG_MIN_SIMILARITY', 0.7)
     MAX_CONTEXT_TOKENS = getattr(settings, 'RAG_MAX_CONTEXT_TOKENS', 8000)
     MAX_CONTEXT_CHUNKS = getattr(settings, 'RAG_MAX_CONTEXT_CHUNKS', 8)
-    DEFAULT_STREAMING_MODEL = getattr(settings, 'RAG_STREAMING_MODEL', 'openai/gpt-4')
+    DEFAULT_STREAMING_MODEL = getattr(settings, 'RAG_STREAMING_MODEL', 'openrouter/openai/gpt-5')
     RERANK_TOP_K = getattr(settings, 'RAG_RERANK_TOP_K', 5)
 
 
@@ -520,9 +520,9 @@ Based on the provided documents ({sources_text}), here is my response:
             import litellm
             
             # Use OpenAI API key from settings
-            api_key = getattr(settings, 'OPENAI_API_KEY', None)
+            api_key = getattr(settings, 'OPENROUTER_API_KEY', None)
             if not api_key:
-                raise RAGError("OPENAI_API_KEY not configured")
+                raise RAGError("OPENROUTER_API_KEY not configured")
             
             response = await litellm.acompletion(
                 model=RAGConfig.DEFAULT_STREAMING_MODEL,

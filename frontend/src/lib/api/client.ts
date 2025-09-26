@@ -72,7 +72,7 @@ class ApiClient {
     options: RequestInit = {},
     config: RequestConfig = {}
   ): Promise<ApiResponse<T>> {
-    const { timeout = 30000, retries = 3, signal, headers: configHeaders } = config
+    const { timeout = 30000, retries = 0, signal, headers: configHeaders } = config
     
     const authHeaders = await this.getAuthHeaders()
     const headers = {

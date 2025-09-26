@@ -21,6 +21,12 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
   }
 }
 
+export interface DocumentOutline {
+  title: string,
+  level: number,
+  type: string
+}
+
 // Document Types
 export interface Document {
   id: string
@@ -48,7 +54,7 @@ export interface Document {
   totalPages?: number
   totalWords?: number
   totalChunks?: number
-  outline?: any
+  outline?: DocumentOutline
 }
 
 export interface DocumentUploadRequest {

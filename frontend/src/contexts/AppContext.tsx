@@ -339,16 +339,17 @@ export function AppProvider({ children }: AppProviderProps) {
   const [state, dispatch] = useReducer(appReducer, initialState)
   const { user } = useAuth()
 
+  const userId = user?.id
+
   // Load user data when user changes
   useEffect(() => {
-    if (user) {
+    if (userId) {
       loadDocuments()
       loadConversations()
     } else {
       dispatch({ type: 'RESET_STATE' })
     }
-  }, [user])
-
+  }, [userId])
 
   // Update user profile
   const updateUserProfile = useCallback(async (updates: Partial<Pick<User, 'fullName' | 'settings'>>) => {

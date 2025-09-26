@@ -94,7 +94,7 @@ class PDFChunker:
             # If adding this sentence would exceed max_words and we have content
             if current_word_count > 0 and current_word_count + sentence_word_count > max_words:
                 # Finalize current chunk
-                chunk_text = ' '.join(current_chunk_sentences)
+                chunk_text = ' '.join(str(sentence) for sentence in current_chunk_sentences)
                 chunks.append({
                     "content": chunk_text,
                     "chunk_index": start_chunk_index + chunk_within_block,

@@ -33,6 +33,7 @@ class VectorStorage:
     async def store_document_chunks(
         self, 
         document_id: UUID, 
+        user_id: UUID,
         chunks: List[Dict[str, Any]]
     ) -> int:
         """
@@ -69,7 +70,7 @@ class VectorStorage:
                 )
                 
                 # Insert new chunks using batch insert
-                stored_count = await self._batch_insert_chunks(session, document_id, chunks_with_embeddings)
+                stored_count = await self._batch_insert_chunks(session, document_id, user_id, chunks_with_embeddings)
                 
                 logger.info(f"Successfully stored {stored_count} chunks for document {document_id}")
                 return stored_count
@@ -78,7 +79,7 @@ class VectorStorage:
             logger.error(f"Failed to store chunks for document {document_id}: {str(e)}")
             raise VectorStorageError(f"Failed to store document chunks: {str(e)}") from e
     
-    async def _batch_insert_chunks(self, session, document_id: UUID, chunks: List[Dict[str, Any]]) -> int:
+    async def _batch_insert_chunks(self, session, document_id: UUID, user_id: UUID, chunks: List[Dict[str, Any]]) -> int:
         """Batch insert chunks for better performance."""
         if not chunks:
             return 0
@@ -95,16 +96,16 @@ class VectorStorage:
             page_number = chunk.get('page_number', 1)
             chunk_index = chunk.get('chunk_index', 0)
             word_count = chunk.get('word_count', 0)
-            char_count = chunk.get('char_count', 0)
+            char_count = chunk.get('char_count', len(content))
+            token_count = chunk.get('token_count')
+            embedding_model = chunk.get('embedding_model', 'text-embedding-3-small')
+            embedding_model_version = chunk.get('embedding_version', 'v1')
             
-            # Metadata
+            # Additional metadata that doesn't have dedicated columns
             metadata = {
                 'chunk_type': chunk.get('chunk_type', 'unknown'),
                 'block_id': chunk.get('block_id'),
                 'bbox': chunk.get('bbox'),
-                'embedding_model': chunk.get('embedding_model'),
-                'embedding_version': chunk.get('embedding_version'),
-                'vector_dimension': chunk.get('vector_dimension'),
                 'part_of_block': chunk.get('part_of_block', False),
                 'block_part': chunk.get('block_part'),
                 'sentence_count': chunk.get('sentence_count')
@@ -115,13 +116,17 @@ class VectorStorage:
             
             batch_data.append((
                 document_id,
+                user_id,
                 content,
-                embedding,
-                page_number,
                 chunk_index,
+                page_number,
                 word_count,
                 char_count,
-                json.dumps(metadata)
+                embedding,
+                embedding_model,
+                embedding_model_version,
+                token_count,
+                json.dumps(metadata) if metadata else None
             ))
         
         if not batch_data:
@@ -132,15 +137,19 @@ class VectorStorage:
         try:
             await session.executemany("""
                 INSERT INTO public.document_chunks (
-                    document_id, 
-                    content, 
-                    embedding, 
-                    page_number, 
-                    chunk_index, 
-                    word_count, 
-                    char_count, 
+                    document_id,
+                    user_id,
+                    content,
+                    chunk_index,
+                    page_number,
+                    word_count,
+                    char_count,
+                    embedding,
+                    embedding_model,
+                    embedding_model_version,
+                    token_count,
                     metadata
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             """, batch_data)
             
             logger.debug(f"Batch inserted {len(batch_data)} chunks")
@@ -150,53 +159,6 @@ class VectorStorage:
             logger.error(f"Batch insert failed: {str(e)}")
             raise VectorStorageError(f"Batch insert failed: {str(e)}") from e
     
-    async def _insert_chunk(self, session, document_id: UUID, chunk: Dict[str, Any]):
-        """Insert a single chunk into the database."""
-        # Prepare chunk data
-        content = chunk.get('content', '')
-        embedding = chunk.get('embedding', [])
-        page_number = chunk.get('page_number', 1)
-        chunk_index = chunk.get('chunk_index', 0)
-        word_count = chunk.get('word_count', 0)
-        char_count = chunk.get('char_count', 0)
-        
-        # Metadata
-        metadata = {
-            'chunk_type': chunk.get('chunk_type', 'unknown'),
-            'block_id': chunk.get('block_id'),
-            'bbox': chunk.get('bbox'),
-            'embedding_model': chunk.get('embedding_model'),
-            'embedding_version': chunk.get('embedding_version'),
-            'vector_dimension': chunk.get('vector_dimension'),
-            'part_of_block': chunk.get('part_of_block', False),
-            'block_part': chunk.get('block_part'),
-            'sentence_count': chunk.get('sentence_count')
-        }
-        
-        # Remove None values from metadata
-        metadata = {k: v for k, v in metadata.items() if v is not None}
-        
-        await session.execute("""
-            INSERT INTO public.document_chunks (
-                document_id, 
-                content, 
-                embedding, 
-                page_number, 
-                chunk_index, 
-                word_count, 
-                char_count, 
-                metadata
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        """, 
-        document_id,
-        content,
-        embedding,  # pg_vector will handle the array conversion
-        page_number,
-        chunk_index,
-        word_count,
-        char_count,
-        json.dumps(metadata)
-        )
     
     async def similarity_search(
         self, 
@@ -238,6 +200,9 @@ class VectorStorage:
                         dc.chunk_index,
                         dc.word_count,
                         dc.char_count,
+                        dc.embedding_model,
+                        dc.embedding_model_version,
+                        dc.token_count,
                         dc.metadata,
                         dc.created_at,
                         d.title as document_title,
@@ -266,6 +231,9 @@ class VectorStorage:
                             'chunk_index': row['chunk_index'],
                             'word_count': row['word_count'],
                             'char_count': row['char_count'],
+                            'embedding_model': row['embedding_model'],
+                            'embedding_model_version': row['embedding_model_version'],
+                            'token_count': row['token_count'],
                             'metadata': json.loads(row['metadata']) if row['metadata'] else {},
                             'similarity_score': similarity_score,
                             'document_title': row['document_title'],
@@ -308,7 +276,8 @@ class VectorStorage:
                 query = f"""
                     SELECT 
                         id, document_id, content, page_number, chunk_index,
-                        word_count, char_count, metadata, created_at
+                        word_count, char_count, embedding_model, embedding_model_version,
+                        token_count, metadata, created_at
                     FROM public.document_chunks
                     {where_clause}
                     ORDER BY chunk_index
@@ -326,6 +295,9 @@ class VectorStorage:
                         'chunk_index': row['chunk_index'],
                         'word_count': row['word_count'],
                         'char_count': row['char_count'],
+                        'embedding_model': row['embedding_model'],
+                        'embedding_model_version': row['embedding_model_version'],
+                        'token_count': row['token_count'],
                         'metadata': json.loads(row['metadata']) if row['metadata'] else {},
                         'created_at': row['created_at'].isoformat() if row['created_at'] else None
                     }

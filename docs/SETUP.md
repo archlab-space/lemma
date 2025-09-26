@@ -182,8 +182,6 @@ R2_ENDPOINT=https://xxx.r2.cloudflarestorage.com
 
 # LLM API Configuration
 OPENAI_API_KEY=sk-...
-# OR
-ANTHROPIC_API_KEY=sk-ant-...
 
 # Backend Configuration
 BACKEND_URL=http://localhost:8000

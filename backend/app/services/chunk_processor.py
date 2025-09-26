@@ -77,6 +77,7 @@ class ChunkProcessor:
     async def process_document_chunks(
         self, 
         document_id: UUID, 
+        user_id: UUID,
         chunks: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """
@@ -103,7 +104,7 @@ class ChunkProcessor:
             chunks_with_embeddings = await self._generate_chunk_embeddings(chunks)
             
             # Step 2: Store chunks with embeddings in vector database
-            stored_count = await self._store_chunks_with_embeddings(document_id, chunks_with_embeddings)
+            stored_count = await self._store_chunks_with_embeddings(document_id, user_id, chunks_with_embeddings)
             
             # Step 3: Get processing statistics
             stats = await self._get_processing_statistics(document_id, chunks, chunks_with_embeddings)
@@ -183,12 +184,13 @@ class ChunkProcessor:
     async def _store_chunks_with_embeddings(
         self, 
         document_id: UUID, 
+        user_id: UUID,
         chunks_with_embeddings: List[Dict[str, Any]]
     ) -> int:
         """Store chunks with embeddings in vector database."""
         try:
             logger.debug(f"Storing chunks with embeddings for document {document_id}")
-            stored_count = await self.vector_storage.store_document_chunks(document_id, chunks_with_embeddings)
+            stored_count = await self.vector_storage.store_document_chunks(document_id, user_id, chunks_with_embeddings)
             
             logger.info(f"Stored {stored_count} chunks in vector database")
             return stored_count
@@ -276,7 +278,7 @@ class ChunkProcessor:
         
         return result
     
-    async def reprocess_document_chunks(self, document_id: UUID) -> Dict[str, Any]:
+    async def reprocess_document_chunks(self, document_id: UUID, user_id: UUID) -> Dict[str, Any]:
         """
         Reprocess chunks for a document (useful for updating embeddings with new models).
         
@@ -305,7 +307,7 @@ class ChunkProcessor:
             logger.info(f"Reprocessing {len(chunks_for_reprocessing)} chunks for document {document_id}")
             
             # Process through the embedding pipeline
-            return await self.process_document_chunks(document_id, chunks_for_reprocessing)
+            return await self.process_document_chunks(document_id, user_id, chunks_for_reprocessing)
             
         except Exception as e:
             logger.error(f"Chunk reprocessing failed for document {document_id}: {str(e)}")

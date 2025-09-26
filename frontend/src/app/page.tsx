@@ -68,6 +68,25 @@ export default function HomePage() {
     router.push(`/chat/${conversationId}`)
   }
 
+  const handleRetryProcessing = async (documentId: string) => {
+    try {
+      await documentsService.triggerProcessing(documentId)
+      addNotification({
+        type: 'success',
+        title: 'Processing Started',
+        message: 'Document processing has been triggered. It may take a few minutes to complete.'
+      })
+      // Refresh documents to show updated status
+      loadDocuments()
+    } catch (error) {
+      addNotification({
+        type: 'error',
+        title: 'Processing Failed',
+        message: error instanceof Error ? error.message : 'Failed to trigger document processing'
+      })
+    }
+  }
+
   const formatFileSize = (bytes: number): string => {
     const units = ['B', 'KB', 'MB', 'GB']
     let size = bytes
@@ -360,6 +379,20 @@ export default function HomePage() {
                                         Start New Chat
                                       </Button>
                                     )}
+
+                                    {document.processingStatus === 'failed' && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleRetryProcessing(document.id)
+                                        }}
+                                        className="w-full mt-2"
+                                      >
+                                        🔄 Retry Processing
+                                      </Button>
+                                    )}
                                   </Stack>
                                 </CardContent>
                               </Card>
@@ -590,9 +623,17 @@ export default function HomePage() {
                               <div className="text-center p-4 bg-red-50 rounded-lg">
                                 <span className="text-2xl mb-2 block">❌</span>
                                 <p className="text-sm text-red-700 font-medium">Processing Failed</p>
-                                <p className="text-xs text-red-600 mt-1">
-                                  Please try uploading the document again
+                                <p className="text-xs text-red-600 mt-1 mb-3">
+                                  Document processing failed. You can try processing it again.
                                 </p>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleRetryProcessing(selectedDocument.id)}
+                                  className="border-red-300 text-red-700 hover:bg-red-100"
+                                >
+                                  🔄 Retry Processing
+                                </Button>
                               </div>
                             ) : (
                               <div className="text-center p-4 bg-blue-50 rounded-lg">

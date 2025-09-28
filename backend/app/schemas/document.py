@@ -23,6 +23,7 @@ class DocumentCreate(DocumentBase):
     """Schema for creating a new document."""
     file_hash: str
     file_size_bytes: int = Field(gt=0)
+    original_filename: str
     storage_path: str
     
     @validator('file_size_bytes')

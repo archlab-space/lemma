@@ -29,14 +29,14 @@ export interface DocumentOutline {
 
 // Document Types
 export interface Document {
-  id: string
+  documentId: string
   userId: string
   filename: string
   originalFilename: string
   fileSizeBytes: number
   fileHash: string
   mimeType: string
-  storage_path: string
+  storagePath: string
   storageBucket?: string
   processingStatus: 'pending' | 'processing' | 'completed' | 'failed'
   processingError?: string
@@ -58,7 +58,8 @@ export interface Document {
 }
 
 export interface DocumentUploadRequest {
-  fileName: string
+  documentId?: string
+  filename: string
   fileSize: number
   fileType: string
   originalFilename?: string
@@ -66,7 +67,6 @@ export interface DocumentUploadRequest {
   fileHash?: string
   mimeType?: string
   storagePath?: string
-  fileId?: string
   title?: string
   authors?: string[]
   abstract?: string
@@ -79,7 +79,8 @@ export interface DocumentUploadRequest {
 export interface DocumentUploadResponse {
   uploadUrl: string
   documentId: string
-  fields?: Record<string, string>
+  storagePath: string
+  sanitizedFileName: string
 }
 
 export interface DocumentProcessingStatus {

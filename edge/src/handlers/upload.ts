@@ -7,13 +7,13 @@ import { AwsClient } from 'aws4fetch'
 import { RouteHandler } from '../types'
 
 interface PresignedUrlRequest {
-  fileName: string
+  filename: string
   fileSize: number
   fileType: string
   userId: string
   storagePath?: string // Optional - use existing path from metadata
-  fileId?: string // Optional - for retry uploads
-  sanitizedFileName?: string // Optional - for retry uploads
+  documentId?: string // Optional - for retry uploads
+  sanitizedFilename?: string // Optional - for retry uploads
 }
 
 export const generatePresignedUrlHandler: RouteHandler = async (request, context) => {
@@ -35,15 +35,15 @@ export const generatePresignedUrlHandler: RouteHandler = async (request, context
 
   try {
     const body: PresignedUrlRequest = await request.json()
-    const { fileName, fileSize, fileType, storagePath, fileId: providedFileId, sanitizedFileName: providedSanitizedFileName } = body
+    const { filename, fileSize, fileType, storagePath: providedStoragePath, documentId: providedDocumentId, sanitizedFilename: providedSanitizedFileName } = body
 
     // Validate request
-    if (!fileName || !fileSize || !fileType) {
+    if (!filename || !fileSize || !fileType) {
       return new Response(
         JSON.stringify({
           message: 'Missing required fields',
           error_code: 'INVALID_REQUEST',
-          required_fields: ['fileName', 'fileSize', 'fileType'],
+          required_fields: ['filename', 'fileSize', 'fileType'],
         }),
         {
           status: 400,
@@ -52,11 +52,11 @@ export const generatePresignedUrlHandler: RouteHandler = async (request, context
       )
     }
 
-    // Must have either fileName (for new upload) or storagePath (for retry)
-    if (providedFileId && (!storagePath || !providedSanitizedFileName)) {
+    // Must have either filename (for new upload) or storagePath (for retry)
+    if (providedDocumentId && (!providedStoragePath || !providedSanitizedFileName)) {
       return new Response(
         JSON.stringify({
-          message: 'Either fileName or storagePath is required',
+          message: 'Either filename or storagePath is required',
           error_code: 'INVALID_REQUEST',
         }),
         {
@@ -99,21 +99,21 @@ export const generatePresignedUrlHandler: RouteHandler = async (request, context
     }
 
     // Use provided values or generate new ones
-    let filePath: string
-    let fileId: string
+    let storagePath: string
+    let documentId: string
     let sanitizedFileName: string
 
-    if (storagePath && providedFileId && providedSanitizedFileName) {
+    if (providedStoragePath && providedDocumentId && providedSanitizedFileName) {
       // Use provided values for retry uploads (most reliable)
-      filePath = storagePath
-      fileId = providedFileId
+      storagePath = providedStoragePath
+      documentId = providedDocumentId
       sanitizedFileName = providedSanitizedFileName
     } else {
       // Generate new path for fresh uploads
-      fileId = crypto.randomUUID()
+      documentId = crypto.randomUUID()
       const timestamp = new Date().toISOString().split('T')[0]
-      sanitizedFileName = fileName!.replace(/[^a-zA-Z0-9.-]/g, '_')
-      filePath = `documents/${user.id}/${timestamp}/${fileId}_${sanitizedFileName}`
+      sanitizedFileName = filename!.replace(/[^a-zA-Z0-9.-]/g, '_')
+      storagePath = `documents/${user.id}/${timestamp}/${documentId}_${sanitizedFileName}`
     }
 
     // Check if R2 bucket binding is available
@@ -132,7 +132,7 @@ export const generatePresignedUrlHandler: RouteHandler = async (request, context
     }
 
     // Generate R2 pre-signed URL using binding
-    const uploadUrl = await generateR2PresignedUrl(filePath, fileType, context)
+    const uploadUrl = await generateR2PresignedUrl(storagePath, fileType, context)
     
     // Validate the generated URL
     if (!uploadUrl || uploadUrl === 'undefined' || !uploadUrl.startsWith('https://')) {
@@ -142,8 +142,8 @@ export const generatePresignedUrlHandler: RouteHandler = async (request, context
     return new Response(
       JSON.stringify({
         uploadUrl,
-        fileId,
-        filePath,
+        documentId,
+        storagePath,
         sanitizedFileName,
         expiresIn: 3600, // 1 hour
       }),
@@ -171,7 +171,7 @@ export const generatePresignedUrlHandler: RouteHandler = async (request, context
 
 // Generate R2 pre-signed URL using AWS S3-compatible API
 async function generateR2PresignedUrl(
-  filePath: string, 
+  storagePath: string, 
   contentType: string, 
   context: any
 ): Promise<string> {
@@ -201,7 +201,7 @@ async function generateR2PresignedUrl(
     // Construct R2 URL
     const baseUrl = `https://${bucketName}.${accountId}.r2.cloudflarestorage.com`
     const url = new URL(baseUrl)
-    url.pathname = `/${filePath}`
+    url.pathname = `/${storagePath}`
     
     // Set expiry time (1 hour)
     url.searchParams.set('X-Amz-Expires', '3600')

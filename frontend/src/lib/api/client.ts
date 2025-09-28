@@ -178,7 +178,6 @@ class ApiClient {
   async upload(
     url: string,
     file: File,
-    fields?: Record<string, string>,
     onProgress?: (progress: number) => void,
     signal?: AbortSignal
   ): Promise<void> {

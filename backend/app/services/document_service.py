@@ -21,7 +21,7 @@ class DocumentService:
         self, 
         user_id: UUID, 
         document_data: DocumentCreate,
-        file_id: str
+        document_id: str
     ) -> Document:
         """Create a new document record."""
         
@@ -30,10 +30,7 @@ class DocumentService:
         
         if existing_doc:
             raise ValueError("Document with this hash already exists")
-        
-        # Use the provided file_id
-        document_id = UUID(file_id)
-        
+                
         # Insert into database
         async with get_db_session() as session:
             result = await session.fetch("""
@@ -46,7 +43,7 @@ class DocumentService:
                     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
                 ) RETURNING *
             """, 
-            document_id, user_id, document_data.filename, document_data.original_filename,
+            UUID(document_id), user_id, document_data.filename, document_data.original_filename,
             document_data.file_size_bytes, document_data.file_hash, document_data.storage_path,
             'application/pdf', 'lemma-documents', ProcessingStatus.PENDING,
             document_data.title, document_data.authors, document_data.abstract,
@@ -196,10 +193,10 @@ class DocumentService:
         return {
             'isDuplicate': True,
             'existingDocument': {
-                'id': str(existing_doc.id),
+                'documentId': str(existing_doc.id),
                 'filename': existing_doc.filename,
                 'originalFilename': existing_doc.original_filename,
-                'storage_path': existing_doc.storage_path,
+                'storagePath': existing_doc.storage_path,
                 'processingStatus': existing_doc.processing_status,
                 'createdAt': existing_doc.created_at.isoformat() if existing_doc.created_at else None
             }

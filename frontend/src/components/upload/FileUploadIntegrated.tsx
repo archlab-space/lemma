@@ -131,39 +131,53 @@ const FileUploadIntegrated: React.FC<FileUploadIntegratedProps> = ({
       // If duplicate but failed/pending, we'll retry using existing document
       const isRetry = duplicateCheck.isDuplicate && duplicateCheck.existingDocument && duplicateCheck.existingDocument.processingStatus === 'pending'
 
-      let uploadResponse
+      let documentId: string
+      let uploadUrl: string
 
       if (isRetry) {
         console.log('Retrying previous upload for existing document...')
-        // Use existing document ID for retry
-        uploadResponse = {
-          documentId: duplicateCheck.existingDocument!.id,
-          uploadUrl: '', // Will be generated in next step
-          fields: {} as Record<string, string>
-        }
+        documentId = duplicateCheck.existingDocument!.documentId
         
-        // Generate new presigned URL for retry
+        // Generate new presigned URL for retry using existing document metadata
         const uploadRequest: DocumentUploadRequest = {
-          fileName: uploadFile.file.name,
+          filename: uploadFile.file.name,
           fileSize: uploadFile.file.size,
           fileType: uploadFile.file.type,
           fileHash,
-          fileId: duplicateCheck.existingDocument!.id
+          documentId: documentId
         }
         
-        const newUploadResponse = await documentsService.requestUpload(uploadRequest)
-        uploadResponse.uploadUrl = newUploadResponse.uploadUrl
-        uploadResponse.fields = newUploadResponse.fields || {}
+        const uploadResponse = await documentsService.requestUpload(uploadRequest)
+        uploadUrl = uploadResponse.uploadUrl
       } else {
-        // Step 3: Request upload URL for new document
+        // Step 3: Request upload URL first to get storage details
+        console.log('Requesting upload URL...')
         const uploadRequest: DocumentUploadRequest = {
-          fileName: uploadFile.file.name,
+          filename: uploadFile.file.name,
           fileSize: uploadFile.file.size,
           fileType: uploadFile.file.type,
           fileHash
         }
 
-        uploadResponse = await documentsService.requestUpload(uploadRequest)
+        const uploadResponse = await documentsService.requestUpload(uploadRequest)
+        uploadUrl = uploadResponse.uploadUrl
+
+        // Step 4: Create document record with storage path from upload response
+        console.log('Creating document record...')
+        const createRequest: DocumentUploadRequest = {
+          filename: uploadResponse.sanitizedFileName,
+          fileSize: uploadFile.file.size,
+          fileType: uploadFile.file.type,
+          fileHash,
+          originalFilename: uploadFile.file.name,
+          fileSizeBytes: uploadFile.file.size,
+          mimeType: uploadFile.file.type,
+          storagePath: uploadResponse.storagePath,
+          documentId: uploadResponse.documentId
+        }
+
+        const documentResponse = await documentsService.createDocument(createRequest)
+        documentId = documentResponse.document.documentId
       }
 
       // Update progress after URL generation
@@ -176,16 +190,15 @@ const FileUploadIntegrated: React.FC<FileUploadIntegratedProps> = ({
       // Update with document ID
       setUploadingFiles(prev => prev.map(f => 
         f.id === uploadFile.id 
-          ? { ...f, documentId: uploadResponse.documentId }
+          ? { ...f, documentId }
           : f
       ))
 
-      // Step 4: Upload file to R2
+      // Step 5: Upload file to R2
       console.log('Uploading file to R2...')
       await documentsService.uploadFile(
-        uploadResponse.uploadUrl,
+        uploadUrl,
         uploadFile.file,
-        uploadResponse.fields || {},
         (progress) => {
           // Map upload progress to 30-70% range
           const adjustedProgress = 30 + (progress * 0.4)
@@ -198,20 +211,20 @@ const FileUploadIntegrated: React.FC<FileUploadIntegratedProps> = ({
         abortController.signal
       )
 
-      // Step 5: Complete upload and start processing
-      console.log('Completing upload and starting processing...')
-      await documentsService.completeUpload(uploadResponse.documentId)
+      // Step 6: Trigger document processing  
+      console.log('Triggering document processing...')
+      await documentsService.triggerProcessing(documentId)
 
-      // Update status to processing
+      // Update status to processing (backend confirms processing started)
       setUploadingFiles(prev => prev.map(f => 
         f.id === uploadFile.id 
           ? { ...f, status: 'processing', progress: 70 }
           : f
       ))
 
-      // Step 6: Poll for processing status
+      // Step 7: Poll for processing status
       const cancelPolling = documentsService.pollProcessingStatus(
-        uploadResponse.documentId,
+        documentId,
         (status: DocumentProcessingStatus) => {
           // Update progress during processing
           const progressPercent = 70 + ((status.progress || 0) * 0.3) // 70-100%
@@ -318,11 +331,11 @@ const FileUploadIntegrated: React.FC<FileUploadIntegratedProps> = ({
     }
   }, [user, validateFile, onUploadStart, onUploadError, uploadDocument])
 
-  const handleRetryUpload = useCallback((fileId: string) => {
-    const file = uploadingFiles.find(f => f.id === fileId)
+  const handleRetryUpload = useCallback((documentId: string) => {
+    const file = uploadingFiles.find(f => f.id === documentId)
     if (file && file.file) {
       setUploadingFiles(prev => prev.map(f => 
-        f.id === fileId 
+        f.id === documentId 
           ? { ...f, status: 'pending', progress: 0, error: undefined }
           : f
       ))
@@ -330,18 +343,18 @@ const FileUploadIntegrated: React.FC<FileUploadIntegratedProps> = ({
     }
   }, [uploadingFiles, uploadDocument])
 
-  const handleCancelUpload = useCallback((fileId: string) => {
-    const controller = abortControllers.current.get(fileId)
+  const handleCancelUpload = useCallback((documentId: string) => {
+    const controller = abortControllers.current.get(documentId)
     if (controller) {
       controller.abort()
-      abortControllers.current.delete(fileId)
+      abortControllers.current.delete(documentId)
     }
 
-    setUploadingFiles(prev => prev.filter(f => f.id !== fileId))
+    setUploadingFiles(prev => prev.filter(f => f.id !== documentId))
   }, [])
 
-  const handleRemoveFile = useCallback((fileId: string) => {
-    handleCancelUpload(fileId)
+  const handleRemoveFile = useCallback((documentId: string) => {
+    handleCancelUpload(documentId)
   }, [handleCancelUpload])
 
   const handleClearCompleted = useCallback(() => {

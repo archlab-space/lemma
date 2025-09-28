@@ -129,22 +129,12 @@ class DocumentsService {
   async uploadFile(
     uploadUrl: string,
     file: File,
-    fields?: Record<string, string>,
     onProgress?: (progress: number) => void,
     signal?: AbortSignal
   ): Promise<void> {
-    return apiClient.upload(uploadUrl, file, fields, onProgress, signal)
+    return apiClient.upload(uploadUrl, file, onProgress, signal)
   }
 
-  /**
-   * Complete upload and start processing
-   */
-  async completeUpload(documentId: string): Promise<{message: string, documentId: string}> {
-    const response = await apiClient.post<{message: string, documentId: string}>(
-      `${this.basePath}/${documentId}/complete-upload`
-    )
-    return response.data!
-  }
 
   /**
    * Poll processing status with callbacks
@@ -167,7 +157,7 @@ class DocumentsService {
         if (cancelled) return
         
         const status: DocumentProcessingStatus = {
-          id: document.id,
+          id: document.documentId,
           processingStatus: document.processingStatus,
           processingError: document.processingError,
           processingStartedAt: document.processingStartedAt,

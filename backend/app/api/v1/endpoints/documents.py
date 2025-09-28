@@ -49,7 +49,7 @@ async def create_document(
     """Create a new document metadata record."""
     try:
         # Extract and validate required fields
-        required_fields = ['filename', 'originalFilename', 'fileSizeBytes', 'fileHash', 'mimeType', 'storagePath', 'fileId']
+        required_fields = ['documentId', 'filename', 'originalFilename', 'fileSizeBytes', 'fileHash', 'mimeType', 'storagePath', 'documentId']
         missing_fields = [field for field in required_fields if field not in document_data]
         
         if missing_fields:
@@ -85,20 +85,20 @@ async def create_document(
         document = await document_service.create_document(
             user_id=UUID(user_id),
             document_data=create_data,
-            file_id=document_data['fileId']  # Now required field
+            document_id=document_data['documentId']  # Now required field
         )
         
         # Convert document to response format
         return {
             "document": {
-                "id": str(document.id),
+                "documentId": str(document.id),
                 "userId": str(document.user_id),
                 "filename": document.filename,
                 "originalFilename": document.original_filename,
                 "fileSizeBytes": document.file_size_bytes,
                 "fileHash": document.file_hash,
                 "mimeType": document.mime_type,
-                "storage_path": document.storage_path,
+                "storagePath": document.storage_path,
                 "storageBucket": document.storage_bucket,
                 "processingStatus": document.processing_status,
                 "createdAt": document.created_at.isoformat() if document.created_at else None,
@@ -163,7 +163,7 @@ async def get_documents(
                 "fileSizeBytes": doc.file_size_bytes,
                 "fileHash": doc.file_hash,
                 "mimeType": doc.mime_type,
-                "storage_path": doc.storage_path,
+                "storagePath": doc.storage_path,
                 "storageBucket": doc.storage_bucket,
                 "processingStatus": doc.processing_status,
                 "createdAt": doc.created_at.isoformat() if doc.created_at else None,
@@ -217,7 +217,7 @@ async def get_document(
             "fileSizeBytes": document.file_size_bytes,
             "fileHash": document.file_hash,
             "mimeType": document.mime_type,
-            "storage_path": document.storage_path,
+            "storagePath": document.storage_path,
             "storageBucket": document.storage_bucket,
             "processingStatus": document.processing_status,
             "createdAt": document.created_at.isoformat() if document.created_at else None,
@@ -315,7 +315,7 @@ async def trigger_document_processing(
     document_id: str,
     user_id: str = Depends(get_current_user_id)
 ) -> Dict[str, Any]:
-    """Manually trigger document processing."""
+    """Trigger document processing for pending or failed documents."""
     try:
         document_service = DocumentService()
         document = await document_service.get_document_by_id(UUID(user_id), UUID(document_id))
@@ -324,11 +324,19 @@ async def trigger_document_processing(
             raise HTTPException(status_code=404, detail="Document not found")
             
         # Check if document is in a processable state
-        if document.processing_status != ProcessingStatus.FAILED:
+        processable_statuses = [ProcessingStatus.PENDING, ProcessingStatus.FAILED]
+        if document.processing_status not in processable_statuses:
             raise HTTPException(
                 status_code=400, 
-                detail=f"Document cannot be processed in current status: {document.processing_status}"
+                detail=f"Document cannot be processed in current status: {document.processing_status}. "
+                       f"Only documents with status 'pending' or 'failed' can be processed."
             )
+        
+        # Update status to processing before triggering
+        await document_service.update_document_status(
+            UUID(document_id),
+            ProcessingStatus.PROCESSING
+        )
         
         # Trigger processing
         await document_processor.trigger_processing(UUID(document_id))
@@ -342,4 +350,5 @@ async def trigger_document_processing(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid document ID format")
     except Exception as e:
+        logger.error(f"Failed to trigger processing for document {document_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to trigger processing: {str(e)}")

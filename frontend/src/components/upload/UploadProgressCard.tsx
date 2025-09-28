@@ -139,7 +139,7 @@ const UploadProgressCard: React.FC<UploadProgressCardProps> = ({
               </Badge>
               
               {/* Action buttons */}
-              <Flex gap="xs">
+              <Flex gap="sm">
                 {file.status === 'error' && onRetry && (
                   <Button
                     size="sm"

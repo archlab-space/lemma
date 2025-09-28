@@ -106,7 +106,7 @@ const client = new AwsClient({
 })
 
 const url = new URL(`https://lemma-documents.${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`)
-url.pathname = `/${filePath}`
+url.pathname = `/${storagePath}`
 url.searchParams.set('X-Amz-Expires', '3600') // 1 hour
 
 const signed = await client.sign(new Request(url, { method: 'PUT' }), {
@@ -129,9 +129,9 @@ const response = await fetch(presignedUrl, {
 ### 3. File Access
 ```typescript
 // Public URL for accessing files
-const publicUrl = `https://pub-${accountId}.r2.dev/${filePath}`
+const publicUrl = `https://pub-${accountId}.r2.dev/${storagePath}`
 // Or with custom domain:
-const customUrl = `https://files.lemma.app/${filePath}`
+const customUrl = `https://files.lemma.app/${storagePath}`
 ```
 
 ## Security Considerations
@@ -141,8 +141,8 @@ const customUrl = `https://files.lemma.app/${filePath}`
 documents/
 ├── {userId}/
 │   ├── {date}/
-│   │   ├── {fileId}_{sanitizedName}.pdf
-│   │   └── {fileId}_{sanitizedName}.pdf
+│   │   ├── {documentId}_{sanitizedName}.pdf
+│   │   └── {documentId}_{sanitizedName}.pdf
 │   └── {date}/
 └── {userId}/
 ```

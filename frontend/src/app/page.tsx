@@ -38,7 +38,7 @@ export default function HomePage() {
 
   // Enrich documents with conversation data
   const documentsWithSessions: DocumentWithSessions[] = documents.map(doc => {
-    const docConversations = conversations.filter(s => s.document_id === doc.id)
+    const docConversations = conversations.filter(s => s.document_id === doc.documentId)
     return {
       ...doc,
       recentSessions: docConversations.slice(0, 3),
@@ -311,10 +311,10 @@ export default function HomePage() {
                           <Grid cols={1} responsive={{ md: 2 }} gap="md">
                             {documentsWithSessions.map((document) => (
                               <Card
-                                key={document.id}
+                                key={document.documentId}
                                 variant="outlined"
                                 className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
-                                  selectedDocument?.id === document.id
+                                  selectedDocument?.documentId === document.documentId
                                     ? 'ring-2 ring-blue-500 shadow-md'
                                     : 'hover:ring-1 hover:ring-gray-300'
                                 }`}
@@ -372,7 +372,7 @@ export default function HomePage() {
                                         size="sm"
                                         onClick={(e) => {
                                           e.stopPropagation()
-                                          handleStartNewChat(document.id)
+                                          handleStartNewChat(document.documentId)
                                         }}
                                         className="w-full mt-2"
                                       >
@@ -386,7 +386,7 @@ export default function HomePage() {
                                         variant="outline"
                                         onClick={(e) => {
                                           e.stopPropagation()
-                                          handleRetryProcessing(document.id)
+                                          handleRetryProcessing(document.documentId)
                                         }}
                                         className="w-full mt-2"
                                       >
@@ -589,7 +589,7 @@ export default function HomePage() {
                             {selectedDocument.processingStatus === 'completed' ? (
                               <>
                                 <Button
-                                  onClick={() => handleStartNewChat(selectedDocument.id)}
+                                  onClick={() => handleStartNewChat(selectedDocument.documentId)}
                                   className="w-full"
                                 >
                                   💬 Start New Chat
@@ -605,7 +605,7 @@ export default function HomePage() {
                                 )}
                                 <Button
                                   variant="ghost"
-                                  onClick={() => router.push(`/document/${selectedDocument.id}`)}
+                                  onClick={() => router.push(`/document/${selectedDocument.documentId}`)}
                                   className="w-full"
                                 >
                                   📖 View Document Details
@@ -629,7 +629,7 @@ export default function HomePage() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => handleRetryProcessing(selectedDocument.id)}
+                                  onClick={() => handleRetryProcessing(selectedDocument.documentId)}
                                   className="border-red-300 text-red-700 hover:bg-red-100"
                                 >
                                   🔄 Retry Processing

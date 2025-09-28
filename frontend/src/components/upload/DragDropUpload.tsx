@@ -14,6 +14,8 @@ interface DragDropUploadProps {
   disabled?: boolean
   className?: string
   children?: React.ReactNode
+  helperText?: string
+  showFileCount?: boolean
 }
 
 const DragDropUpload: React.FC<DragDropUploadProps> = ({
@@ -25,6 +27,8 @@ const DragDropUpload: React.FC<DragDropUploadProps> = ({
   disabled = false,
   className = '',
   children,
+  helperText,
+  showFileCount = false,
 }) => {
   const [isDragOver, setIsDragOver] = useState(false)
   const [dragCounter, setDragCounter] = useState(0)
@@ -202,7 +206,7 @@ const DragDropUpload: React.FC<DragDropUploadProps> = ({
               <p className="text-sm text-gray-600 mb-4">
                 {disabled 
                   ? 'Upload disabled' 
-                  : 'Drag and drop your files here, or click to browse'
+                  : helperText || 'Drag and drop your files here, or click to browse'
                 }
               </p>
 

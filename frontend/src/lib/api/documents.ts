@@ -7,7 +7,9 @@ import { apiClient } from './client'
 import { 
   Document, 
   DocumentUploadRequest, 
+  DocumentUploadResponse,
   DocumentProcessingStatus,
+  DuplicateCheckResponse,
   PaginatedResponse,
   RequestConfig 
 } from './types'
@@ -58,8 +60,8 @@ class DocumentsService {
   /**
    * Check for duplicate document by hash
    */
-  async checkDuplicate(fileHash: string): Promise<unknown> {
-    const response = await apiClient.post<unknown>(
+  async checkDuplicate(fileHash: string): Promise<DuplicateCheckResponse> {
+    const response = await apiClient.post<DuplicateCheckResponse>(
       `${this.basePath}/check-duplicate`,
       { fileHash }
     )
@@ -111,6 +113,17 @@ class DocumentsService {
   }
 
   /**
+   * Request upload URL for document
+   */
+  async requestUpload(request: DocumentUploadRequest): Promise<DocumentUploadResponse> {
+    const response = await apiClient.post<DocumentUploadResponse>(
+      '/api/v1/upload/presigned-url',
+      request
+    )
+    return response.data!
+  }
+
+  /**
    * Upload file to the provided URL (for direct R2 uploads)
    */
   async uploadFile(
@@ -121,6 +134,84 @@ class DocumentsService {
     signal?: AbortSignal
   ): Promise<void> {
     return apiClient.upload(uploadUrl, file, fields, onProgress, signal)
+  }
+
+  /**
+   * Complete upload and start processing
+   */
+  async completeUpload(documentId: string): Promise<{message: string, documentId: string}> {
+    const response = await apiClient.post<{message: string, documentId: string}>(
+      `${this.basePath}/${documentId}/complete-upload`
+    )
+    return response.data!
+  }
+
+  /**
+   * Poll processing status with callbacks
+   */
+  pollProcessingStatus(
+    documentId: string,
+    onProgress: (status: DocumentProcessingStatus) => void,
+    onComplete: (document: Document) => void,
+    onError: (error: Error) => void,
+    intervalMs: number = 2000
+  ): () => void {
+    let cancelled = false
+    
+    const poll = async () => {
+      if (cancelled) return
+      
+      try {
+        const document = await this.getDocument(documentId)
+        
+        if (cancelled) return
+        
+        const status: DocumentProcessingStatus = {
+          id: document.id,
+          processingStatus: document.processingStatus,
+          processingError: document.processingError,
+          processingStartedAt: document.processingStartedAt,
+          processingCompletedAt: document.processingCompletedAt,
+          updatedAt: document.updatedAt
+        }
+        
+        // Add progress calculation based on status
+        const statusWithProgress = {
+          ...status,
+          progress: document.processingStatus === 'completed' ? 1 : 
+                   document.processingStatus === 'processing' ? 0.5 : 
+                   document.processingStatus === 'failed' ? 0 : 0
+        }
+        
+        onProgress(statusWithProgress)
+        
+        if (document.processingStatus === 'completed') {
+          onComplete(document)
+          return
+        }
+        
+        if (document.processingStatus === 'failed') {
+          onError(new Error(document.processingError || 'Processing failed'))
+          return
+        }
+        
+        // Continue polling
+        setTimeout(poll, intervalMs)
+        
+      } catch (error) {
+        if (!cancelled) {
+          onError(error instanceof Error ? error : new Error('Polling failed'))
+        }
+      }
+    }
+    
+    // Start polling
+    poll()
+    
+    // Return cancel function
+    return () => {
+      cancelled = true
+    }
   }
 }
 

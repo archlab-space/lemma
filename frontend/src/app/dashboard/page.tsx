@@ -15,7 +15,7 @@ import { DocumentLibraryIntegrated } from '@/components/user/DocumentLibraryInte
 import { UserProfile } from '@/components/user/UserProfile'
 import { UserSettings } from '@/components/user/UserSettings'
 import { StreamingDemo } from '@/components/StreamingDemo'
-import { FileUpload, FileUploadIntegrated, DragDropUpload, UploadQueue } from '@/components/upload'
+import { FileUploadIntegrated, DragDropUpload, UploadQueue } from '@/components/upload'
 import { Button, Card, CardHeader, CardTitle, CardContent } from '@/components/ui'
 import { Container, Grid, Stack, Flex } from '@/components/layout'
 import { ErrorBoundary } from '@/components/error'

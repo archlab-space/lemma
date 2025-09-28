@@ -1,5 +1,4 @@
 // Upload Components
-export { FileUpload } from './FileUpload'
 export { default as FileUploadIntegrated } from './FileUploadIntegrated'
 export { default as DragDropUpload } from './DragDropUpload'
 export { default as FilePreview } from './FilePreview'

@@ -35,15 +35,15 @@ export const generatePresignedUrlHandler: RouteHandler = async (request, context
 
   try {
     const body: PresignedUrlRequest = await request.json()
-    const { fileName, fileSize, fileType, userId, storagePath, fileId: providedFileId, sanitizedFileName: providedSanitizedFileName } = body
+    const { fileName, fileSize, fileType, storagePath, fileId: providedFileId, sanitizedFileName: providedSanitizedFileName } = body
 
     // Validate request
-    if (!fileName || !fileSize || !fileType || !userId) {
+    if (!fileName || !fileSize || !fileType) {
       return new Response(
         JSON.stringify({
           message: 'Missing required fields',
           error_code: 'INVALID_REQUEST',
-          required_fields: ['fileName', 'fileSize', 'fileType', 'userId'],
+          required_fields: ['fileName', 'fileSize', 'fileType'],
         }),
         {
           status: 400,
@@ -61,20 +61,6 @@ export const generatePresignedUrlHandler: RouteHandler = async (request, context
         }),
         {
           status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      )
-    }
-
-    // Verify user matches authenticated user
-    if (userId !== user.id) {
-      return new Response(
-        JSON.stringify({
-          message: 'User ID mismatch',
-          error_code: 'FORBIDDEN',
-        }),
-        {
-          status: 403,
           headers: { 'Content-Type': 'application/json' },
         }
       )
@@ -127,7 +113,7 @@ export const generatePresignedUrlHandler: RouteHandler = async (request, context
       fileId = crypto.randomUUID()
       const timestamp = new Date().toISOString().split('T')[0]
       sanitizedFileName = fileName!.replace(/[^a-zA-Z0-9.-]/g, '_')
-      filePath = `documents/${userId}/${timestamp}/${fileId}_${sanitizedFileName}`
+      filePath = `documents/${user.id}/${timestamp}/${fileId}_${sanitizedFileName}`
     }
 
     // Check if R2 bucket binding is available

@@ -183,17 +183,6 @@ class ApiClient {
     signal?: AbortSignal
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      const formData = new FormData()
-      
-      // Add any additional fields (for signed uploads)
-      if (fields) {
-        Object.entries(fields).forEach(([key, value]) => {
-          formData.append(key, value)
-        })
-      }
-      
-      formData.append('file', file)
-
       const xhr = new XMLHttpRequest()
 
       if (onProgress) {
@@ -222,8 +211,10 @@ class ApiClient {
         })
       }
 
-      xhr.open('POST', url)
-      xhr.send(formData)
+      // Use PUT for presigned URL uploads (R2/S3 style)
+      xhr.open('PUT', url)
+      xhr.setRequestHeader('Content-Type', file.type)
+      xhr.send(file)
     })
   }
 

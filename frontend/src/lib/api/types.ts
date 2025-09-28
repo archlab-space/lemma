@@ -58,13 +58,15 @@ export interface Document {
 }
 
 export interface DocumentUploadRequest {
-  filename: string
-  originalFilename: string
-  fileSizeBytes: number
-  fileHash: string
-  mimeType: string
-  storagePath: string
-  fileId: string
+  fileName: string
+  fileSize: number
+  fileType: string
+  originalFilename?: string
+  fileSizeBytes?: number
+  fileHash?: string
+  mimeType?: string
+  storagePath?: string
+  fileId?: string
   title?: string
   authors?: string[]
   abstract?: string
@@ -87,6 +89,13 @@ export interface DocumentProcessingStatus {
   processingStartedAt?: string
   processingCompletedAt?: string
   updatedAt?: string
+  progress?: number
+  status?: 'pending' | 'processing' | 'completed' | 'failed'
+}
+
+export interface DuplicateCheckResponse {
+  isDuplicate: boolean
+  existingDocument?: Document
 }
 
 // Chat Types (aligned with database schema)

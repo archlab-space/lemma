@@ -29,6 +29,7 @@ interface UploadQueueProps {
   onResumeAll?: () => void
   maxVisible?: number
   className?: string
+  showBatchActions?: boolean
 }
 
 const UploadQueue: React.FC<UploadQueueProps> = ({
@@ -42,6 +43,7 @@ const UploadQueue: React.FC<UploadQueueProps> = ({
   onResumeAll,
   maxVisible = 5,
   className = '',
+  showBatchActions = false,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [showAll, setShowAll] = useState(false)

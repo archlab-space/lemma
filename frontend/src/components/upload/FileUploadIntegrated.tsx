@@ -67,8 +67,219 @@ const FileUploadIntegrated: React.FC<FileUploadIntegratedProps> = ({
       return `File type not supported. Accepted types: ${acceptedTypes.join(', ')}`
     }
 
+    // Check if file already exists in current upload queue
+    const existingFile = uploadingFiles.find(f => f.name === file.name && f.size === file.size)
+    if (existingFile) {
+      return 'This file is already being uploaded'
+    }
+
     return null
-  }, [maxFileSize, acceptedTypes])
+  }, [maxFileSize, acceptedTypes, uploadingFiles])
+
+  // Calculate file hash for duplicate detection
+  const calculateFileHash = useCallback(async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer()
+    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  }, [])
+
+  // Check if file is duplicate using the API
+  const checkDuplicate = useCallback(async (fileHash: string) => {
+    try {
+      return await documentsService.checkDuplicate(fileHash)
+    } catch (error) {
+      console.error('Error checking duplicate:', error)
+      throw error
+    }
+  }, [])
+
+  const uploadDocument = useCallback(async (uploadFile: UploadingFile) => {
+    if (!uploadFile.file) return
+
+    const abortController = new AbortController()
+    abortControllers.current.set(uploadFile.id, abortController)
+
+    try {
+      // Update status to uploading
+      setUploadingFiles(prev => prev.map(f => 
+        f.id === uploadFile.id 
+          ? { ...f, status: 'uploading', progress: 0 }
+          : f
+      ))
+
+      // Step 1: Calculate file hash for duplicate detection
+      console.log('Calculating file hash for:', uploadFile.file.name)
+      const fileHash = await calculateFileHash(uploadFile.file)
+      console.log('File hash calculated:', fileHash)
+
+      // Update progress after hash calculation
+      setUploadingFiles(prev => prev.map(f => 
+        f.id === uploadFile.id 
+          ? { ...f, progress: 20 }
+          : f
+      ))
+
+      // Step 2: Check for duplicates
+      console.log('Checking for duplicates...')
+      const duplicateCheck = await checkDuplicate(fileHash)
+      
+      if (duplicateCheck.isDuplicate && duplicateCheck.existingDocument && duplicateCheck.existingDocument.processingStatus !== 'pending') {
+        throw new Error(`This document has already been uploaded: "${duplicateCheck.existingDocument.originalFilename || duplicateCheck.existingDocument.filename}"`)
+      }
+
+      // If duplicate but failed/pending, we'll retry using existing document
+      const isRetry = duplicateCheck.isDuplicate && duplicateCheck.existingDocument && duplicateCheck.existingDocument.processingStatus === 'pending'
+
+      let uploadResponse
+
+      if (isRetry) {
+        console.log('Retrying previous upload for existing document...')
+        // Use existing document ID for retry
+        uploadResponse = {
+          documentId: duplicateCheck.existingDocument!.id,
+          uploadUrl: '', // Will be generated in next step
+          fields: {} as Record<string, string>
+        }
+        
+        // Generate new presigned URL for retry
+        const uploadRequest: DocumentUploadRequest = {
+          fileName: uploadFile.file.name,
+          fileSize: uploadFile.file.size,
+          fileType: uploadFile.file.type,
+          fileHash,
+          fileId: duplicateCheck.existingDocument!.id
+        }
+        
+        const newUploadResponse = await documentsService.requestUpload(uploadRequest)
+        uploadResponse.uploadUrl = newUploadResponse.uploadUrl
+        uploadResponse.fields = newUploadResponse.fields || {}
+      } else {
+        // Step 3: Request upload URL for new document
+        const uploadRequest: DocumentUploadRequest = {
+          fileName: uploadFile.file.name,
+          fileSize: uploadFile.file.size,
+          fileType: uploadFile.file.type,
+          fileHash
+        }
+
+        uploadResponse = await documentsService.requestUpload(uploadRequest)
+      }
+
+      // Update progress after URL generation
+      setUploadingFiles(prev => prev.map(f => 
+        f.id === uploadFile.id 
+          ? { ...f, progress: 30 }
+          : f
+      ))
+
+      // Update with document ID
+      setUploadingFiles(prev => prev.map(f => 
+        f.id === uploadFile.id 
+          ? { ...f, documentId: uploadResponse.documentId }
+          : f
+      ))
+
+      // Step 4: Upload file to R2
+      console.log('Uploading file to R2...')
+      await documentsService.uploadFile(
+        uploadResponse.uploadUrl,
+        uploadFile.file,
+        uploadResponse.fields || {},
+        (progress) => {
+          // Map upload progress to 30-70% range
+          const adjustedProgress = 30 + (progress * 0.4)
+          setUploadingFiles(prev => prev.map(f => 
+            f.id === uploadFile.id 
+              ? { ...f, progress: Math.round(adjustedProgress) }
+              : f
+          ))
+        },
+        abortController.signal
+      )
+
+      // Step 5: Complete upload and start processing
+      console.log('Completing upload and starting processing...')
+      await documentsService.completeUpload(uploadResponse.documentId)
+
+      // Update status to processing
+      setUploadingFiles(prev => prev.map(f => 
+        f.id === uploadFile.id 
+          ? { ...f, status: 'processing', progress: 70 }
+          : f
+      ))
+
+      // Step 6: Poll for processing status
+      const cancelPolling = documentsService.pollProcessingStatus(
+        uploadResponse.documentId,
+        (status: DocumentProcessingStatus) => {
+          // Update progress during processing
+          const progressPercent = 70 + ((status.progress || 0) * 0.3) // 70-100%
+          
+          // Map API status to component status
+          const componentStatus: UploadingFile['status'] = 
+            status.processingStatus === 'processing' ? 'processing' :
+            status.processingStatus === 'completed' ? 'completed' :
+            status.processingStatus === 'failed' ? 'error' :
+            'processing' // default fallback
+          
+          setUploadingFiles(prev => prev.map(f => 
+            f.id === uploadFile.id 
+              ? { 
+                  ...f, 
+                  progress: Math.round(progressPercent),
+                  status: componentStatus
+                }
+              : f
+          ))
+        },
+        async (document: Document) => {
+          // Processing completed successfully
+          setUploadingFiles(prev => prev.map(f => 
+            f.id === uploadFile.id 
+              ? { ...f, status: 'completed', progress: 100 }
+              : f
+          ))
+
+          onUploadComplete?.(document)
+          abortControllers.current.delete(uploadFile.id)
+        },
+        (error: Error) => {
+          // Processing failed
+          setUploadingFiles(prev => prev.map(f => 
+            f.id === uploadFile.id 
+              ? { ...f, status: 'error', error: error.message }
+              : f
+          ))
+
+          onUploadError?.(uploadFile, error.message)
+          abortControllers.current.delete(uploadFile.id)
+        }
+      )
+
+      // Store cancel function for potential cleanup
+      abortController.signal.addEventListener('abort', () => {
+        cancelPolling()
+      })
+
+    } catch (error) {
+      console.error('Upload failed for file:', uploadFile.file?.name, error)
+      const errorMessage = error instanceof Error ? error.message : 'Upload failed'
+      
+      const errorFile = {
+        ...uploadFile,
+        status: 'error' as const,
+        error: errorMessage,
+      }
+
+      setUploadingFiles(prev => prev.map(f => 
+        f.id === uploadFile.id ? errorFile : f
+      ))
+
+      onUploadError?.(errorFile, errorMessage)
+      abortControllers.current.delete(uploadFile.id)
+    }
+  }, [calculateFileHash, checkDuplicate, onUploadComplete, onUploadError])
 
   const handleFilesSelected = useCallback(async (files: FileList) => {
     if (!user) {
@@ -105,122 +316,7 @@ const FileUploadIntegrated: React.FC<FileUploadIntegratedProps> = ({
         onUploadError?.(uploadFile, uploadFile.error)
       }
     }
-  }, [user, validateFile, onUploadStart, onUploadError])
-
-  const uploadDocument = useCallback(async (uploadFile: UploadingFile) => {
-    if (!uploadFile.file) return
-
-    const abortController = new AbortController()
-    abortControllers.current.set(uploadFile.id, abortController)
-
-    try {
-      // Update status to uploading
-      setUploadingFiles(prev => prev.map(f => 
-        f.id === uploadFile.id 
-          ? { ...f, status: 'uploading' }
-          : f
-      ))
-
-      // Step 1: Request upload URL
-      const uploadRequest: DocumentUploadRequest = {
-        filename: uploadFile.file.name,
-        size: uploadFile.file.size,
-        contentType: uploadFile.file.type
-      }
-
-      const uploadResponse = await documentsService.requestUpload(uploadRequest)
-
-      // Update with document ID
-      setUploadingFiles(prev => prev.map(f => 
-        f.id === uploadFile.id 
-          ? { ...f, documentId: uploadResponse.documentId }
-          : f
-      ))
-
-      // Step 2: Upload file to R2
-      await documentsService.uploadFile(
-        uploadResponse.uploadUrl,
-        uploadFile.file,
-        uploadResponse.fields,
-        (progress) => {
-          setUploadingFiles(prev => prev.map(f => 
-            f.id === uploadFile.id 
-              ? { ...f, progress: Math.round(progress * 0.7) } // Reserve 30% for processing
-              : f
-          ))
-        },
-        abortController.signal
-      )
-
-      // Step 3: Complete upload and start processing
-      await documentsService.completeUpload(uploadResponse.documentId)
-
-      // Update status to processing
-      setUploadingFiles(prev => prev.map(f => 
-        f.id === uploadFile.id 
-          ? { ...f, status: 'processing', progress: 70 }
-          : f
-      ))
-
-      // Step 4: Poll for processing status
-      const cancelPolling = documentsService.pollProcessingStatus(
-        uploadResponse.documentId,
-        (status: DocumentProcessingStatus) => {
-          // Update progress during processing
-          const progressPercent = 70 + (status.progress * 0.3) // 70-100%
-          
-          setUploadingFiles(prev => prev.map(f => 
-            f.id === uploadFile.id 
-              ? { 
-                  ...f, 
-                  progress: Math.round(progressPercent),
-                  status: status.status === 'processing' ? 'processing' : status.status
-                }
-              : f
-          ))
-        },
-        async (document: Document) => {
-          // Processing completed successfully
-          setUploadingFiles(prev => prev.map(f => 
-            f.id === uploadFile.id 
-              ? { ...f, status: 'completed', progress: 100 }
-              : f
-          ))
-
-          onUploadComplete?.(document)
-          abortControllers.current.delete(uploadFile.id)
-        },
-        (error: Error) => {
-          // Processing failed
-          setUploadingFiles(prev => prev.map(f => 
-            f.id === uploadFile.id 
-              ? { ...f, status: 'error', error: error.message }
-              : f
-          ))
-
-          onUploadError?.(uploadFile, error.message)
-          abortControllers.current.delete(uploadFile.id)
-        }
-      )
-
-      // Store cancel function for potential cleanup
-      abortController.signal.addEventListener('abort', () => {
-        cancelPolling()
-      })
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Upload failed'
-      
-      setUploadingFiles(prev => prev.map(f => 
-        f.id === uploadFile.id 
-          ? { ...f, status: 'error', error: errorMessage }
-          : f
-      ))
-
-      onUploadError?.(uploadFile, errorMessage)
-      abortControllers.current.delete(uploadFile.id)
-    }
-  }, [onUploadComplete, onUploadError])
+  }, [user, validateFile, onUploadStart, onUploadError, uploadDocument])
 
   const handleRetryUpload = useCallback((fileId: string) => {
     const file = uploadingFiles.find(f => f.id === fileId)
@@ -250,6 +346,15 @@ const FileUploadIntegrated: React.FC<FileUploadIntegratedProps> = ({
 
   const handleClearCompleted = useCallback(() => {
     setUploadingFiles(prev => prev.filter(f => f.status !== 'completed'))
+  }, [])
+
+  // Utility function for formatting file size
+  const formatFileSize = useCallback((bytes: number) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }, [])
 
   if (!user) {

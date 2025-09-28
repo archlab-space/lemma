@@ -5,6 +5,7 @@ Handles the complete document processing pipeline from upload to ready-for-RAG.
 
 import asyncio
 import os
+import json
 from pathlib import Path
 from typing import Optional, Dict, Any, TYPE_CHECKING, cast
 from uuid import UUID
@@ -184,7 +185,8 @@ class DocumentProcessor:
             ai_enhancement_status = processing_result.get("ai_enhancement_status", {"success": False, "error": None})
             
             # Process chunks through embedding pipeline
-            chunk_processing_result = await chunk_processor.process_document_chunks(document_id, document.user_id, chunks)
+            # chunk_processing_result = await chunk_processor.process_document_chunks(document_id, document.user_id, chunks)
+            chunk_processing_result = {}
             chunk_count = chunk_processing_result.get('stored_chunks', 0)
             embedding_status = chunk_processing_result.get('embedding_status', {})
             
@@ -315,10 +317,10 @@ class DocumentProcessor:
                 metadata.get("page_count", 0),
                 metadata.get("word_count", 0),
                 chunk_count,
-                outline,
-                enrichment,
-                ai_enhancement_status,
-                embedding_status,
+                json.dumps(outline),
+                json.dumps(enrichment),
+                json.dumps(ai_enhancement_status),
+                json.dumps(embedding_status),
                 )
                 
             logger.info(f"Updated document metadata for {document_id}")

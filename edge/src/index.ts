@@ -223,11 +223,12 @@ router
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 		try {
-			return router
+			const response = await router
 				.fetch(request, env, ctx)
 				.then(json)
-				.catch(error)
-				.then((response) => corsify(response, request));
+				.catch(error);
+			
+			return corsify(response, request);
 		} catch (err) {
 			console.error('Worker error:', err);
 			

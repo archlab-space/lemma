@@ -324,7 +324,7 @@ async def trigger_document_processing(
             raise HTTPException(status_code=404, detail="Document not found")
             
         # Check if document is in a processable state
-        if document.processing_status not in [ProcessingStatus.PENDING, ProcessingStatus.FAILED]:
+        if document.processing_status != ProcessingStatus.FAILED:
             raise HTTPException(
                 status_code=400, 
                 detail=f"Document cannot be processed in current status: {document.processing_status}"

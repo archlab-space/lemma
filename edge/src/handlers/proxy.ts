@@ -3,7 +3,7 @@
  */
 
 import { RouteHandler } from '../types';
-import { proxyRequest, proxyStreamingRequest, ProxyError } from '../utils/proxy';
+import { proxyToBackend, streamProxyToBackend, ProxyError } from '../utils/proxy';
 
 export const apiProxyHandler: RouteHandler = async (request, context) => {
 	const { env } = context;
@@ -24,24 +24,13 @@ export const apiProxyHandler: RouteHandler = async (request, context) => {
 	}
 
 	try {
-		return await proxyRequest(request, env.BACKEND_URL, context);
+		return await proxyToBackend(request, context, {
+			endpoint: request.url,
+			method: request.method as any,
+			requireAuth: true,
+			isStreaming: false,
+		});
 	} catch (error) {
-		if (error instanceof ProxyError) {
-			return new Response(
-				JSON.stringify({
-					message: error.message,
-					error_code: 'PROXY_ERROR',
-					requestId: context.requestId,
-				}),
-				{
-					status: error.status,
-					headers: {
-						'Content-Type': 'application/json',
-					},
-				}
-			);
-		}
-
 		console.error('Unexpected proxy error:', error);
 		return new Response(
 			JSON.stringify({
@@ -87,7 +76,12 @@ export const streamingProxyHandler: RouteHandler = async (request, context) => {
 	}
 
 	try {
-		return await proxyStreamingRequest(request, env.BACKEND_URL, context);
+		return await streamProxyToBackend(request, context, {
+			endpoint: request.url,
+			method: request.method as any,
+			requireAuth: true,
+			isStreaming: true,
+		});
 	} catch (error) {
 		console.error('Streaming proxy error:', error);
 		

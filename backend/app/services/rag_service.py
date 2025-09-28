@@ -30,7 +30,7 @@ class RAGConfig:
     MIN_SIMILARITY_THRESHOLD = getattr(settings, 'RAG_MIN_SIMILARITY', 0.7)
     MAX_CONTEXT_TOKENS = getattr(settings, 'RAG_MAX_CONTEXT_TOKENS', 8000)
     MAX_CONTEXT_CHUNKS = getattr(settings, 'RAG_MAX_CONTEXT_CHUNKS', 8)
-    DEFAULT_STREAMING_MODEL = getattr(settings, 'RAG_STREAMING_MODEL', 'openrouter/openai/gpt-5')
+    DEFAULT_STREAMING_MODEL = getattr(settings, 'RAG_STREAMING_MODEL', 'openrouter/openai/gpt-4o-mini')
     RERANK_TOP_K = getattr(settings, 'RAG_RERANK_TOP_K', 5)
 
 

@@ -1,4 +1,5 @@
 import sys
+import logging
 import structlog
 from typing import Any, Dict
 
@@ -9,6 +10,13 @@ settings = get_settings()
 
 def configure_logging() -> None:
     """Configure structured logging for the application."""
+    
+    # Configure standard library logging first
+    logging.basicConfig(
+        format="%(message)s",
+        stream=sys.stdout,
+        level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO),
+    )
     
     if settings.LOG_FORMAT == "json":
         # Production JSON logging

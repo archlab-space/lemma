@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     # LLM API Configuration
     OPENAI_API_KEY: str | None = None
     OPENROUTER_API_KEY: str | None = None
+    GEMINI_API_KEY: str | None = None
     
     # Default LLM Settings
     DEFAULT_LLM_MODEL: str = "gpt-3.5-turbo"

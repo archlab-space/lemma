@@ -5,14 +5,14 @@
  * Full-screen chat interface for document conversations
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useApp } from '@/contexts/AppContext'
 import { chatService, documentsService } from '@/lib/api'
-import { ChatSession, Document, ChatMessage } from '@/lib/api/types'
-import { StreamingChatIntegrated } from '@/components/chat/StreamingChatIntegrated'
-import { DocumentMetadata } from '@/components/document/DocumentMetadata'
+import { ChatConversation, Document, ChatMessage } from '@/lib/api/types'
+import StreamingChatIntegrated  from '@/components/chat/StreamingChatIntegrated'
+import DocumentMetadata from '@/components/document/DocumentMetadata'
 import { Button, Card, CardContent, Badge, LoadingState } from '@/components/ui'
 import { Container, Stack, Flex } from '@/components/layout'
 import { ErrorBoundary } from '@/components/error'
@@ -24,33 +24,28 @@ export default function ChatSessionPage() {
   const { user } = useAuth()
   const { addNotification } = useApp()
   
-  const sessionId = params?.id as string
-  const [session, setSession] = useState<ChatSession | null>(null)
+  const conversationId = params?.id as string
+  const [conversation, setConversation] = useState<ChatConversation | null>(null)
   const [document, setDocument] = useState<Document | null>(null)
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showDocumentDetails, setShowDocumentDetails] = useState(false)
 
-  useEffect(() => {
-    if (sessionId && user) {
-      loadSession()
-    }
-  }, [sessionId, user])
-
-  const loadSession = async () => {
+  const loadConversation = useCallback(async () => {
     try {
       setLoading(true)
       
       // Load session and document data
-      const [sessionData, messages] = await Promise.all([
-        chatService.getSession(sessionId),
-        chatService.getMessages(sessionId, { limit: 50 })
+      const [conversationData] = await Promise.all([
+        chatService.getConversation(conversationId),
       ])
       
-      setSession(sessionData)
+      setConversation(conversationData.conversation)
+      setMessages(conversationData.messages || [])
       
       // Load document details
-      const documentData = await documentsService.getDocument(sessionData.documentId)
+      const documentData = await documentsService.getDocument(conversationData.conversation.documentId)
       setDocument(documentData)
       
       setError(null)
@@ -65,11 +60,13 @@ export default function ChatSessionPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [conversationId, addNotification])
 
-  const handleSessionUpdated = (updatedSession: ChatSession) => {
-    setSession(updatedSession)
-  }
+    useEffect(() => {
+    if (conversationId && user?.id) {
+      loadConversation()
+    }
+  }, [loadConversation, user?.id])
 
   if (!user) {
     return (
@@ -92,7 +89,7 @@ export default function ChatSessionPage() {
     )
   }
 
-  if (error || !session || !document) {
+  if (error || !conversation || !document) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Stack spacing="md" align="center">
@@ -137,7 +134,7 @@ export default function ChatSessionPage() {
                 <div className="h-6 w-px bg-gray-300" />
                 <div className="flex-1 min-w-0">
                   <h1 className="text-lg font-semibold text-gray-900 truncate">
-                    {session.title}
+                    {conversation.title}
                   </h1>
                   <p className="text-sm text-gray-500 truncate">
                     {document.title}
@@ -147,7 +144,7 @@ export default function ChatSessionPage() {
               
               <Flex align="center" gap="md">
                 <Badge variant="default" size="sm">
-                  {session.messageCount} messages
+                  {conversation.messageCount} messages
                 </Badge>
                 
                 <Button
@@ -173,22 +170,24 @@ export default function ChatSessionPage() {
             <Container size="xl" className="h-full py-6">
               <div className="h-full">
                 <StreamingChatIntegrated
-                  documentId={document.id}
-                  sessionId={session.id}
-                  onSessionCreated={handleSessionUpdated}
-                  onMessageSent={(message) => {
+                  documentId={document.documentId}
+                  conversationId={conversation.id}
+                  initialMessages={messages}
+                  onMessageSent={(message: ChatMessage) => {
                     console.log('Message sent:', message)
+                    setMessages(prev => [...prev, message])
                     // Update session message count
-                    setSession(prev => prev ? {
+                    setConversation(prev => prev ? {
                       ...prev,
                       messageCount: prev.messageCount + 1,
                       lastActivity: new Date().toISOString()
                     } : null)
                   }}
-                  onMessageReceived={(message) => {
+                  onMessageReceived={(message: ChatMessage) => {
                     console.log('Message received:', message)
+                    setMessages(prev => [...prev, message])
                     // Update session message count
-                    setSession(prev => prev ? {
+                    setConversation(prev => prev ? {
                       ...prev,
                       messageCount: prev.messageCount + 1,
                       lastActivity: new Date().toISOString()
@@ -233,7 +232,6 @@ export default function ChatSessionPage() {
                   {/* Document Overview */}
                   <DocumentMetadata 
                     document={document}
-                    showFullMetadata={true}
                   />
 
                   {/* Quick Actions */}
@@ -244,7 +242,7 @@ export default function ChatSessionPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => router.push(`/document/${document.id}`)}
+                          onClick={() => router.push(`/document/${document.documentId}`)}
                           className="w-full justify-start"
                         >
                           📖 View Full Document
@@ -252,7 +250,7 @@ export default function ChatSessionPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => router.push(`/document/${document.id}?view=outline`)}
+                          onClick={() => router.push(`/document/${document.documentId}?view=outline`)}
                           className="w-full justify-start"
                         >
                           📑 Document Outline
@@ -260,7 +258,7 @@ export default function ChatSessionPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => router.push(`/document/${document.id}?view=search`)}
+                          onClick={() => router.push(`/document/${document.documentId}?view=search`)}
                           className="w-full justify-start"
                         >
                           🔍 Search Document
@@ -277,17 +275,17 @@ export default function ChatSessionPage() {
                         <Flex justify="between">
                           <span className="text-sm text-gray-500">Created:</span>
                           <span className="text-sm font-medium">
-                            {new Date(session.createdAt).toLocaleDateString()}
+                            {new Date(conversation.createdAt).toLocaleDateString()}
                           </span>
                         </Flex>
                         <Flex justify="between">
                           <span className="text-sm text-gray-500">Messages:</span>
-                          <span className="text-sm font-medium">{session.messageCount}</span>
+                          <span className="text-sm font-medium">{conversation.messageCount}</span>
                         </Flex>
                         <Flex justify="between">
                           <span className="text-sm text-gray-500">Last Active:</span>
                           <span className="text-sm font-medium">
-                            {new Date(session.lastActivity).toLocaleDateString()}
+                            {conversation.lastMessageAt ?  new Date(conversation.lastMessageAt).toLocaleDateString() : ''}
                           </span>
                         </Flex>
                       </Stack>

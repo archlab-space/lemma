@@ -143,9 +143,9 @@ class RAGService:
             
             if not retrieved_chunks:
                 response = "I couldn't find any relevant information to answer your question. Please make sure you've uploaded documents that contain information related to your query."
-                
+
                 # Store assistant message
-                await chat_service.add_message(
+                message = await chat_service.add_message(
                     session_id=session_id,
                     user_id=user_id,
                     content=response,
@@ -155,8 +155,30 @@ class RAGService:
                     retrieval_time_ms=retrieval_duration_ms,
                     processing_time_ms=0
                 )
-                
-                yield response
+
+                # Send content as structured JSON
+                yield json.dumps({"content": response})
+
+                # Send completion signal
+                completion_data = {
+                    "status": "completed",
+                    "id": str(message.id),
+                    "session_id": str(session_id),
+                    "user_id": str(user_id),
+                    "content": response,
+                    "sequence_number": message.sequence_number,
+                    "token_count": message.token_count,
+                    "retrieved_chunks": [],
+                    "chunks_used_count": 0,
+                    "retrieval_query": question,
+                    "retrieval_score": 0.0,
+                    "model_used": session.model_used,
+                    "processing_time_ms": 0,
+                    "retrieval_time_ms": retrieval_duration_ms,
+                    "created_at": message.created_at.isoformat() if message.created_at else datetime.now().isoformat(),
+                    "completed_at": datetime.now().isoformat()
+                }
+                yield json.dumps(completion_data)
                 return
             
             # Step 2: Rank and filter context
@@ -164,19 +186,20 @@ class RAGService:
             
             # Step 3: Generate streaming response and collect tokens
             response_parts = []
-            
+
             async for token in self._generate_streaming_answer(question, context_chunks):
                 response_parts.append(token)
-                yield token
-            
+                # Send structured JSON with content
+                yield json.dumps({"content": token})
+
             # Calculate processing time
             processing_duration_ms = int((datetime.now() - processing_start_time).total_seconds() * 1000)
             response_text = "".join(response_parts)
-            
+
             # Store assistant message with full context
             chunk_ids = [UUID(chunk.id) for chunk in context_chunks if chunk.id]
-            
-            await chat_service.add_message(
+
+            message = await chat_service.add_message(
                 session_id=session_id,
                 user_id=user_id,
                 content=response_text,
@@ -189,11 +212,32 @@ class RAGService:
                 retrieval_time_ms=retrieval_duration_ms,
                 processing_time_ms=processing_duration_ms
             )
+
+            # Send completion signal with full message metadata
+            completion_data = {
+                "status": "completed",
+                "id": str(message.id),
+                "session_id": str(session_id),
+                "user_id": str(user_id),
+                "content": response_text,
+                "sequence_number": message.sequence_number,
+                "token_count": message.token_count,
+                "retrieved_chunks": [chunk.content for chunk in context_chunks[:3]],  # First 3 chunks as preview
+                "chunks_used_count": len(context_chunks),
+                "retrieval_query": question,
+                "retrieval_score": message.retrieval_score,
+                "model_used": session.model_used,
+                "processing_time_ms": processing_duration_ms,
+                "retrieval_time_ms": retrieval_duration_ms,
+                "created_at": message.created_at.isoformat() if message.created_at else datetime.now().isoformat(),
+                "completed_at": datetime.now().isoformat()
+            }
+            yield json.dumps(completion_data)
                 
         except Exception as e:
             logger.error(f"RAG question processing failed: {str(e)}")
             error_message = f"I apologize, but I encountered an error while processing your question: {str(e)}"
-            
+
             # Store error message
             try:
                 await chat_service.add_message(
@@ -208,8 +252,9 @@ class RAGService:
                 )
             except Exception as store_error:
                 logger.error(f"Failed to store error message: {str(store_error)}")
-            
-            yield error_message
+
+            # Send error as structured JSON
+            yield json.dumps({"content": error_message, "status": "error"})
     
     async def ask_question_sync_with_context(
         self,

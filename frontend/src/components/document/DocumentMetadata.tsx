@@ -3,27 +3,10 @@
 import React, { useState } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
 import { Stack, Flex } from '@/components/layout'
-
-interface DocumentMetadata {
-  id: string
-  title: string
-  authors?: string[]
-  abstract?: string
-  doi?: string
-  publicationYear?: number
-  journal?: string
-  keywords?: string[]
-  pages: number
-  fileSize: number
-  uploadDate: Date
-  processedDate?: Date
-  language?: string
-  citations?: number
-  references?: number
-}
+import {Document} from '@/lib/api/types'
 
 interface DocumentMetadataProps {
-  metadata: DocumentMetadata
+  document: Document
   onEdit?: () => void
   onExport?: () => void
   showEditButton?: boolean
@@ -33,7 +16,7 @@ interface DocumentMetadataProps {
 }
 
 const DocumentMetadata: React.FC<DocumentMetadataProps> = ({
-  metadata,
+  document,
   onEdit,
   onExport,
   showEditButton = false,
@@ -42,6 +25,7 @@ const DocumentMetadata: React.FC<DocumentMetadataProps> = ({
   className = '',
 }) => {
   const [isExpanded, setIsExpanded] = useState(!compact)
+  const [isAbstractExpanded, setIsAbstractExpanded] = useState(false)
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes'
@@ -51,12 +35,13 @@ const DocumentMetadata: React.FC<DocumentMetadataProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  const formatDate = (date: Date) => {
+  const formatDate = (date: string | Date) => {
+    const dateObj = typeof date === 'string' ? new Date(date) : date
     return new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
-    }).format(date)
+    }).format(dateObj)
   }
 
   const copyToClipboard = async (text: string) => {
@@ -68,13 +53,13 @@ const DocumentMetadata: React.FC<DocumentMetadataProps> = ({
   }
 
   const renderKeywords = () => {
-    if (!metadata.keywords || metadata.keywords.length === 0) return null
+    if (!document.keywords || document.keywords.length === 0) return null
 
     return (
       <div>
         <h4 className="text-sm font-medium text-gray-900 mb-2">Keywords</h4>
-        <Flex gap="xs" wrap="wrap">
-          {metadata.keywords.map((keyword, index) => (
+        <Flex gap="sm" wrap="wrap">
+          {document.keywords.map((keyword, index) => (
             <Badge key={index} variant="default" size="sm">
               {keyword}
             </Badge>
@@ -85,23 +70,22 @@ const DocumentMetadata: React.FC<DocumentMetadataProps> = ({
   }
 
   const renderAuthors = () => {
-    if (!metadata.authors || metadata.authors.length === 0) return null
+    if (!document.authors || document.authors.length === 0) return null
 
     return (
       <div>
         <h4 className="text-sm font-medium text-gray-900 mb-1">Authors</h4>
         <p className="text-sm text-gray-700">
-          {metadata.authors.join(', ')}
+          {document.authors.join(', ')}
         </p>
       </div>
     )
   }
 
   const renderAbstract = () => {
-    if (!metadata.abstract) return null
+    if (!document.abstract) return null
 
-    const [isAbstractExpanded, setIsAbstractExpanded] = useState(false)
-    const shouldTruncate = metadata.abstract.length > 300
+    const shouldTruncate = document.abstract.length > 300
 
     return (
       <div>
@@ -109,7 +93,7 @@ const DocumentMetadata: React.FC<DocumentMetadataProps> = ({
         <div className="text-sm text-gray-700 leading-relaxed">
           {shouldTruncate && !isAbstractExpanded ? (
             <>
-              {metadata.abstract.substring(0, 300)}...
+              {document.abstract.substring(0, 300)}...
               <Button
                 variant="ghost"
                 size="sm"
@@ -121,7 +105,7 @@ const DocumentMetadata: React.FC<DocumentMetadataProps> = ({
             </>
           ) : (
             <>
-              {metadata.abstract}
+              {document.abstract}
               {shouldTruncate && (
                 <Button
                   variant="ghost"
@@ -140,28 +124,28 @@ const DocumentMetadata: React.FC<DocumentMetadataProps> = ({
   }
 
   const renderPublicationInfo = () => {
-    if (!metadata.journal && !metadata.publicationYear && !metadata.doi) return null
+    if (!document.journal && !document.publicationYear && !document.doi) return null
 
     return (
       <div>
         <h4 className="text-sm font-medium text-gray-900 mb-2">Publication</h4>
         <Stack spacing="xs" className="text-sm text-gray-700">
-          {metadata.journal && (
-            <p><span className="font-medium">Journal:</span> {metadata.journal}</p>
+          {document.journal && (
+            <p><span className="font-medium">Journal:</span> {document.journal}</p>
           )}
-          {metadata.publicationYear && (
-            <p><span className="font-medium">Year:</span> {metadata.publicationYear}</p>
+          {document.publicationYear && (
+            <p><span className="font-medium">Year:</span> {document.publicationYear}</p>
           )}
-          {metadata.doi && (
+          {document.doi && (
             <Flex gap="sm" align="center">
               <span className="font-medium">DOI:</span>
               <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
-                {metadata.doi}
+                {document.doi}
               </code>
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => copyToClipboard(metadata.doi!)}
+                onClick={() => copyToClipboard(document.doi!)}
                 className="p-1 text-gray-500 hover:text-gray-700"
                 title="Copy DOI"
               >
@@ -182,26 +166,26 @@ const DocumentMetadata: React.FC<DocumentMetadataProps> = ({
       <Stack spacing="xs" className="text-sm text-gray-700">
         <Flex justify="between">
           <span>Pages:</span>
-          <span>{metadata.pages}</span>
+          <span>{document.totalPages}</span>
         </Flex>
         <Flex justify="between">
           <span>File Size:</span>
-          <span>{formatFileSize(metadata.fileSize)}</span>
+          <span>{formatFileSize(document.fileSizeBytes)}</span>
         </Flex>
-        {metadata.language && (
+        {document.language && (
           <Flex justify="between">
             <span>Language:</span>
-            <span>{metadata.language}</span>
+            <span>{document.language}</span>
           </Flex>
         )}
         <Flex justify="between">
           <span>Uploaded:</span>
-          <span>{formatDate(metadata.uploadDate)}</span>
+          <span>{formatDate(document.createdAt)}</span>
         </Flex>
-        {metadata.processedDate && (
+        {document.processingStartedAt && (
           <Flex justify="between">
             <span>Processed:</span>
-            <span>{formatDate(metadata.processedDate)}</span>
+            <span>{formatDate(document.processingStartedAt)}</span>
           </Flex>
         )}
       </Stack>
@@ -209,27 +193,29 @@ const DocumentMetadata: React.FC<DocumentMetadataProps> = ({
   )
 
   const renderStats = () => {
-    if (!metadata.citations && !metadata.references) return null
+    // TODO: add citations or references extraction
+    return null
+    // if (!metadata.citations && !metadata.references) return null
 
-    return (
-      <div>
-        <h4 className="text-sm font-medium text-gray-900 mb-2">Statistics</h4>
-        <Stack spacing="xs" className="text-sm text-gray-700">
-          {metadata.citations && (
-            <Flex justify="between">
-              <span>Citations:</span>
-              <span>{metadata.citations}</span>
-            </Flex>
-          )}
-          {metadata.references && (
-            <Flex justify="between">
-              <span>References:</span>
-              <span>{metadata.references}</span>
-            </Flex>
-          )}
-        </Stack>
-      </div>
-    )
+    // return (
+    //   <div>
+    //     <h4 className="text-sm font-medium text-gray-900 mb-2">Statistics</h4>
+    //     <Stack spacing="xs" className="text-sm text-gray-700">
+    //       {metadata.citations && (
+    //         <Flex justify="between">
+    //           <span>Citations:</span>
+    //           <span>{metadata.citations}</span>
+    //         </Flex>
+    //       )}
+    //       {metadata.references && (
+    //         <Flex justify="between">
+    //           <span>References:</span>
+    //           <span>{metadata.references}</span>
+    //         </Flex>
+    //       )}
+    //     </Stack>
+    //   </div>
+    // )
   }
 
   return (
@@ -238,7 +224,7 @@ const DocumentMetadata: React.FC<DocumentMetadataProps> = ({
         <Flex justify="between" align="start">
           <CardTitle className="text-base">Document Information</CardTitle>
           
-          <Flex gap="xs">
+          <Flex gap="sm">
             {showEditButton && onEdit && (
               <Button size="sm" variant="outline" onClick={onEdit}>
                 Edit
@@ -275,7 +261,7 @@ const DocumentMetadata: React.FC<DocumentMetadataProps> = ({
             {/* Title */}
             <div>
               <h3 className="text-lg font-semibold text-gray-900 leading-tight">
-                {metadata.title}
+                {document.title}
               </h3>
             </div>
 

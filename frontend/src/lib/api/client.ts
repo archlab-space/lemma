@@ -10,10 +10,11 @@ class ApiClient {
   private baseUrl: string
 
   constructor() {
-    // Edge API base URL - update based on environment
-    this.baseUrl = process.env.NODE_ENV === 'production' 
-      ? 'https://api.lemma.ai' 
-      : 'http://localhost:8787'
+    // Edge API base URL - passes through proxy layer to backend
+    this.baseUrl = process.env.NEXT_PUBLIC_API_URL ||
+      (process.env.NODE_ENV === 'production'
+        ? 'https://api.lemma.ai'
+        : 'http://localhost:8787')
   }
 
   private async getAuthHeaders(): Promise<Record<string, string>> {
@@ -220,7 +221,7 @@ class ApiClient {
   async stream(
     endpoint: string,
     data: unknown,
-    onChunk: (chunk: string) => void,
+    onChunk: (chunk: string | Record<string, unknown>) => void,
     config?: RequestConfig
   ): Promise<void> {
     const authHeaders = await this.getAuthHeaders()
@@ -250,11 +251,11 @@ class ApiClient {
     try {
       while (true) {
         const { done, value } = await reader.read()
-        
+
         if (done) break
-        
+
         const chunk = decoder.decode(value, { stream: true })
-        
+
         // Handle Server-Sent Events format
         const lines = chunk.split('\n')
         for (const line of lines) {
@@ -263,7 +264,8 @@ class ApiClient {
             if (data && data !== '[DONE]') {
               try {
                 const parsed = JSON.parse(data)
-                onChunk(parsed.content || parsed.delta || '')
+                // Pass the entire parsed object to allow handling of metadata
+                onChunk(parsed)
               } catch {
                 // If not JSON, treat as plain text
                 onChunk(data)

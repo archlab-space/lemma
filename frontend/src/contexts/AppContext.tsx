@@ -8,7 +8,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react'
 import { useAuth } from './AuthContext'
 import { documentsService, userService, chatService } from '@/lib/api'
-import { Document, User, UserStats, ConversationResponse } from '@/lib/api/types'
+import { Document, User, UserStats, ChatConversation } from '@/lib/api/types'
 
 // State Types
 interface AppState {
@@ -22,7 +22,7 @@ interface AppState {
   documentsError: string | null
   
   // Conversations
-  conversations: ConversationResponse[]
+  conversations: ChatConversation[]
   conversationsLoading: boolean
   conversationsError: string | null
   
@@ -72,9 +72,9 @@ type AppAction =
   | { type: 'SET_DOCUMENTS_ERROR'; payload: string | null }
   
   // Conversation actions
-  | { type: 'SET_CONVERSATIONS'; payload: ConversationResponse[] }
-  | { type: 'ADD_CONVERSATION'; payload: ConversationResponse }
-  | { type: 'UPDATE_CONVERSATION'; payload: ConversationResponse }
+  | { type: 'SET_CONVERSATIONS'; payload: ChatConversation[] }
+  | { type: 'ADD_CONVERSATION'; payload: ChatConversation }
+  | { type: 'UPDATE_CONVERSATION'; payload: ChatConversation }
   | { type: 'REMOVE_CONVERSATION'; payload: string }
   | { type: 'SET_CONVERSATIONS_LOADING'; payload: boolean }
   | { type: 'SET_CONVERSATIONS_ERROR'; payload: string | null }
@@ -169,14 +169,14 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         documents: state.documents.map(doc => 
-          doc.id === action.payload.id ? action.payload : doc
+          doc.documentId === action.payload.documentId ? action.payload : doc
         )
       }
     
     case 'REMOVE_DOCUMENT':
       return {
         ...state,
-        documents: state.documents.filter(doc => doc.id !== action.payload)
+        documents: state.documents.filter(doc => doc.documentId !== action.payload)
       }
     
     case 'SET_DOCUMENTS_LOADING':
@@ -311,8 +311,8 @@ interface AppContextType {
   
   // Conversation methods
   loadConversations: (refresh?: boolean) => Promise<void>
-  addConversation: (conversation: ConversationResponse) => void
-  updateConversation: (conversation: ConversationResponse) => void
+  addConversation: (conversation: ChatConversation) => void
+  updateConversation: (conversation: ChatConversation) => void
   removeConversation: (conversationId: string) => void
   
   // UI methods
@@ -447,7 +447,7 @@ export function AppProvider({ children }: AppProviderProps) {
   }, [])
 
   const removeDocument = useCallback((documentId: string) => {
-    const document = state.documents.find(d => d.id === documentId)
+    const document = state.documents.find(d => d.documentId === documentId)
     dispatch({ type: 'REMOVE_DOCUMENT', payload: documentId })
     
     if (document) {
@@ -463,7 +463,7 @@ export function AppProvider({ children }: AppProviderProps) {
   }, [state.documents])
 
   // Conversation management methods
-  const addConversation = useCallback((conversation: ConversationResponse) => {
+  const addConversation = useCallback((conversation: ChatConversation) => {
     dispatch({ type: 'ADD_CONVERSATION', payload: conversation })
     dispatch({ 
       type: 'ADD_NOTIFICATION', 
@@ -475,7 +475,7 @@ export function AppProvider({ children }: AppProviderProps) {
     })
   }, [])
 
-  const updateConversation = useCallback((conversation: ConversationResponse) => {
+  const updateConversation = useCallback((conversation: ChatConversation) => {
     dispatch({ type: 'UPDATE_CONVERSATION', payload: conversation })
   }, [])
 

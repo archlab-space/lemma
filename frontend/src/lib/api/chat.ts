@@ -5,12 +5,10 @@
 
 import { apiClient } from './client'
 import { 
-  ChatMessage, 
-  ChatSession, 
   ChatRequest, 
   SessionChatRequest,
   ConversationCreateRequest,
-  ConversationResponse,
+  ChatConversation,
   ConversationListResponse,
   ConversationHistoryResponse,
   StreamingChatResponse,
@@ -23,8 +21,8 @@ class ChatService {
   /**
    * Create a new conversation
    */
-  async createConversation(request: ConversationCreateRequest): Promise<ConversationResponse> {
-    const response = await apiClient.post<ConversationResponse>(`${this.basePath}/conversations`, request)
+  async createConversation(request: ConversationCreateRequest): Promise<ChatConversation> {
+    const response = await apiClient.post<ChatConversation>(`${this.basePath}/conversations`, request)
     return response.data!
   }
 
@@ -80,10 +78,10 @@ class ChatService {
   }
 
   /**
-   * Send a message in a session and get streaming response
+   * Send a message in a conversation and get streaming response
    */
-  async sendSessionMessage(
-    sessionId: string,
+  async sendConversationMessage(
+    conversationId: string,
     request: SessionChatRequest,
     onChunk: (chunk: string) => void,
     onComplete?: (response: StreamingChatResponse) => void,
@@ -95,29 +93,56 @@ class ChatService {
 
     try {
       await apiClient.stream(
-        `${this.basePath}/sessions/${sessionId}/ask`,
+        `${this.basePath}/sessions/${conversationId}/ask`,
         request,
-        (chunk: string) => {
-          try {
-            // Try to parse as JSON first (for structured responses)
-            const parsed = JSON.parse(chunk)
-            
-            // Update message data
-            Object.assign(messageData, parsed)
-            
+        (chunk: string | Record<string, unknown>) => {
+          // Handle structured JSON responses
+          if (typeof chunk === 'object' && chunk !== null) {
+            const parsed = chunk as Record<string, unknown>
+            // Check for completion signal
+            if (parsed.status === 'completed') {
+              // This is the final message with full metadata
+              if (onComplete) {
+                onComplete({
+                  id: parsed.id as string,
+                  session_id: parsed.session_id as string,
+                  user_id: parsed.user_id as string,
+                  role: 'assistant',
+                  content: parsed.content as string,
+                  sequence_number: parsed.sequence_number as number,
+                  token_count: parsed.token_count as number,
+                  retrieved_chunks: parsed.retrieved_chunks as string[],
+                  chunks_used_count: parsed.chunks_used_count as number,
+                  retrieval_query: parsed.retrieval_query as string,
+                  retrieval_score: parsed.retrieval_score as number,
+                  model_used: parsed.model_used as string,
+                  processing_time_ms: parsed.processing_time_ms as number,
+                  retrieval_time_ms: parsed.retrieval_time_ms as number,
+                  created_at: parsed.created_at as string,
+                  completed_at: parsed.completed_at as string,
+                  status: 'completed',
+                  user_rating: parsed.user_rating as number | undefined,
+                  user_feedback: parsed.user_feedback as string | undefined,
+                  is_helpful: parsed.is_helpful as boolean | undefined
+                })
+              }
+              return
+            }
+
+            // Check for error status
+            if (parsed.status === 'error' && parsed.content) {
+              onError?.(new Error(parsed.content as string))
+              return
+            }
+
+            // Regular content chunk
             if (parsed.content) {
-              accumulatedContent += parsed.content
-              onChunk(parsed.content)
+              const content = parsed.content as string
+              accumulatedContent += content
+              onChunk(content)
             }
-            
-            if (parsed.status === 'completed' && onComplete) {
-              onComplete({
-                ...messageData,
-                content: accumulatedContent,
-              } as StreamingChatResponse)
-            }
-          } catch {
-            // If not JSON, treat as plain text
+          } else if (typeof chunk === 'string') {
+            // Fallback for plain text chunks
             accumulatedContent += chunk
             onChunk(chunk)
           }

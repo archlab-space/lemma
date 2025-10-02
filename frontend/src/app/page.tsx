@@ -10,16 +10,16 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useApp } from '@/contexts/AppContext'
 import { documentsService, chatService } from '@/lib/api'
-import { Document, ConversationResponse } from '@/lib/api/types'
+import { Document, ChatConversation, UploadingFile } from '@/lib/api/types'
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge, LoadingState } from '@/components/ui'
 import { Container, Grid, Stack, Flex } from '@/components/layout'
 import { FileUploadIntegrated } from '@/components/upload'
 import { ErrorBoundary } from '@/components/error'
 import Link from 'next/link'
 
-interface DocumentWithSessions extends Document {
-  recentSessions?: ConversationResponse[]
-  sessionCount?: number
+interface DocumentWithConversations extends Document {
+  recentConversations?: ChatConversation[]
+  conversationCount?: number
 }
 
 export default function HomePage() {
@@ -27,7 +27,7 @@ export default function HomePage() {
   const { state, loadDocuments, addNotification } = useApp()
   const router = useRouter()
   
-  const [selectedDocument, setSelectedDocument] = useState<DocumentWithSessions | null>(null)
+  const [selectedDocument, setSelectedDocument] = useState<DocumentWithConversations | null>(null)
   const [view, setView] = useState<'documents' | 'upload' | 'sessions'>('documents')
 
   // Use AppContext for documents and conversations
@@ -37,17 +37,17 @@ export default function HomePage() {
   const conversationsLoading = state.loading.conversations
 
   // Enrich documents with conversation data
-  const documentsWithSessions: DocumentWithSessions[] = documents.map(doc => {
-    const docConversations = conversations.filter(s => s.document_id === doc.documentId)
+  const documentsWithConversations: DocumentWithConversations[] = documents.map(doc => {
+    const docConversations = conversations.filter(s => s.documentId === doc.documentId)
     return {
       ...doc,
-      recentSessions: docConversations.slice(0, 3),
-      sessionCount: docConversations.length
+      recentConversations: docConversations.slice(0, 3),
+      conversationCount: docConversations.length
     }
   })
 
 
-  const handleDocumentSelect = (document: DocumentWithSessions) => {
+  const handleDocumentSelect = (document: DocumentWithConversations) => {
     setSelectedDocument(document)
   }
 
@@ -262,7 +262,7 @@ export default function HomePage() {
                         size="sm"
                         onClick={() => setView('documents')}
                       >
-                        📄 My Documents ({documentsWithSessions.length})
+                        📄 My Documents ({documentsWithConversations.length})
                       </Button>
                       <Button
                         variant={view === 'sessions' ? 'primary' : 'ghost'}
@@ -290,7 +290,7 @@ export default function HomePage() {
                     {/* Documents View */}
                     {view === 'documents' && (
                       <div>
-                        {documentsWithSessions.length === 0 ? (
+                        {documentsWithConversations.length === 0 ? (
                           <Card variant="elevated" className="p-12 text-center">
                             <Stack spacing="md" align="center">
                               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
@@ -309,7 +309,7 @@ export default function HomePage() {
                           </Card>
                         ) : (
                           <Grid cols={1} responsive={{ md: 2 }} gap="md">
-                            {documentsWithSessions.map((document) => (
+                            {documentsWithConversations.map((document) => (
                               <Card
                                 key={document.documentId}
                                 variant="outlined"
@@ -345,19 +345,19 @@ export default function HomePage() {
                                       <span>{formatDate(document.createdAt)}</span>
                                     </div>
 
-                                    {document.sessionCount! > 0 && (
+                                    {document.conversationCount! > 0 && (
                                       <div className="pt-2 border-t">
                                         <Flex justify="between" align="center">
                                           <span className="text-xs text-gray-500">
-                                            {document.sessionCount} conversation{document.sessionCount !== 1 ? 's' : ''}
+                                            {document.conversationCount} conversation{document.conversationCount !== 1 ? 's' : ''}
                                           </span>
                                           <Button
                                             size="sm"
                                             variant="ghost"
                                             onClick={(e) => {
                                               e.stopPropagation()
-                                              if (document.recentSessions?.[0]) {
-                                                handleContinueConversation(document.recentSessions[0].id)
+                                              if (document.recentConversations?.[0]) {
+                                                handleContinueConversation(document.recentConversations[0].id)
                                               }
                                             }}
                                           >
@@ -438,11 +438,11 @@ export default function HomePage() {
                                         {conversation.title}
                                       </h4>
                                       <p className="text-sm text-gray-500 truncate">
-                                        Document: {conversation.document_id}
+                                        Document: {conversation.documentId}
                                       </p>
                                       <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
-                                        <span>{conversation.message_count} messages</span>
-                                        <span>{formatDate(conversation.last_message_at || conversation.created_at)}</span>
+                                        <span>{conversation.messageCount} messages</span>
+                                        <span>{formatDate(conversation.lastMessageAt || conversation.createdAt)}</span>
                                       </div>
                                     </div>
                                     <Button size="sm" variant="ghost">
@@ -468,7 +468,7 @@ export default function HomePage() {
                         </CardHeader>
                         <CardContent>
                           <FileUploadIntegrated
-                            onUploadComplete={(document) => {
+                            onUploadComplete={(document: Document) => {
                               addNotification({
                                 type: 'success',
                                 title: 'Upload Complete',
@@ -477,14 +477,14 @@ export default function HomePage() {
                               loadDocuments() // Refresh documents through AppContext
                               setView('documents') // Switch back to documents view
                             }}
-                            onUploadError={(file, error) => {
+                            onUploadError={(file: UploadingFile, error: string) => {
                               addNotification({
                                 type: 'error',
                                 title: 'Upload Failed',
                                 message: `Failed to upload ${file.name}: ${error}`
                               })
                             }}
-                            onUploadStart={(file) => {
+                            onUploadStart={(file: UploadingFile) => {
                               addNotification({
                                 type: 'info',
                                 title: 'Upload Started',
@@ -594,10 +594,10 @@ export default function HomePage() {
                                 >
                                   💬 Start New Chat
                                 </Button>
-                                {selectedDocument.recentSessions && selectedDocument.recentSessions.length > 0 && (
+                                {selectedDocument.recentConversations && selectedDocument.recentConversations.length > 0 && (
                                   <Button
                                     variant="outline"
-                                    onClick={() => handleContinueConversation(selectedDocument.recentSessions![0].id)}
+                                    onClick={() => handleContinueConversation(selectedDocument.recentConversations![0].id)}
                                     className="w-full"
                                   >
                                     🔄 Continue Last Chat
@@ -648,11 +648,11 @@ export default function HomePage() {
                         </div>
 
                         {/* Recent Sessions */}
-                        {selectedDocument.recentSessions && selectedDocument.recentSessions.length > 0 && (
+                        {selectedDocument.recentConversations && selectedDocument.recentConversations.length > 0 && (
                           <div>
                             <h4 className="font-medium text-gray-900 mb-3">Recent Conversations</h4>
                             <Stack spacing="xs">
-                              {selectedDocument.recentSessions.map((conversation) => (
+                              {selectedDocument.recentConversations.map((conversation) => (
                                 <div
                                   key={conversation.id}
                                   className="p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
@@ -662,8 +662,8 @@ export default function HomePage() {
                                     {conversation.title}
                                   </p>
                                   <div className="flex justify-between items-center text-xs text-gray-500">
-                                    <span>{conversation.message_count} messages</span>
-                                    <span>{formatDate(conversation.last_message_at || conversation.created_at)}</span>
+                                    <span>{conversation.messageCount} messages</span>
+                                    <span>{formatDate(conversation.lastMessageAt || conversation.createdAt)}</span>
                                   </div>
                                 </div>
                               ))}

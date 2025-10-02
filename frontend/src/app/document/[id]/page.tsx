@@ -8,36 +8,18 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { DocumentOutline } from '@/components/document/DocumentOutline'
-import { DocumentMetadata } from '@/components/document/DocumentMetadata'
-import { DocumentSummary } from '@/components/document/DocumentSummary'
-import { DocumentSearch } from '@/components/document/DocumentSearch'
-import { DeleteDocumentDialog } from '@/components/document/DeleteDocumentDialog'
-import { StreamingChat } from '@/components/chat/StreamingChat'
-import { StreamingChatIntegrated } from '@/components/chat/StreamingChatIntegrated'
+import DocumentOutline  from '@/components/document/DocumentOutline'
+import DocumentMetadata from '@/components/document/DocumentMetadata'
+import DocumentSummary from '@/components/document/DocumentSummary'
+import DocumentSearch from '@/components/document/DocumentSearch'
+import DeleteDocumentDialog from '@/components/document/DeleteDocumentDialog'
+import StreamingChatIntegrated from '@/components/chat/StreamingChatIntegrated'
 import { Button, Card, CardHeader, CardTitle, CardContent, Badge } from '@/components/ui'
 import { Container, Grid, Stack, Flex } from '@/components/layout'
 import { ErrorBoundary } from '@/components/error'
 import Link from 'next/link'
 
-interface Document {
-  id: string
-  title: string
-  filename: string
-  size: number
-  pageCount: number
-  uploadedAt: Date
-  processedAt?: Date
-  status: 'processing' | 'completed' | 'error'
-  metadata?: {
-    authors?: string[]
-    abstract?: string
-    keywords?: string[]
-    doi?: string
-    journal?: string
-    year?: number
-  }
-}
+import type { Document as APIDocument } from '@/lib/api/types'
 
 type ViewMode = 'overview' | 'outline' | 'summary' | 'search' | 'chat'
 
@@ -47,42 +29,24 @@ export default function DocumentViewerPage() {
   const { user } = useAuth()
   const documentId = params?.id as string
   
-  const [document, setDocument] = useState<Document | null>(null)
+  const [document, setDocument] = useState<APIDocument | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<ViewMode>('overview')
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
 
-  // Mock data - replace with actual API call
+  // Fetch document data from API
   useEffect(() => {
     const fetchDocument = async () => {
       try {
         setLoading(true)
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        
-        const mockDocument: Document = {
-          id: documentId,
-          title: 'Deep Learning for Natural Language Processing: A Comprehensive Survey',
-          filename: 'deep_learning_nlp_survey.pdf',
-          size: 2.4 * 1024 * 1024, // 2.4 MB
-          pageCount: 42,
-          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-          processedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 30000), // 30 seconds later
-          status: 'completed',
-          metadata: {
-            authors: ['Sarah Chen', 'Michael Rodriguez', 'Dr. Lisa Wang'],
-            abstract: 'This comprehensive survey explores the latest advances in deep learning approaches for natural language processing tasks. We examine state-of-the-art architectures, training methodologies, and evaluation metrics across various NLP applications including language modeling, machine translation, and text classification.',
-            keywords: ['deep learning', 'natural language processing', 'transformers', 'BERT', 'GPT'],
-            doi: '10.1234/example.2024.001',
-            journal: 'Journal of Machine Learning Research',
-            year: 2024
-          }
-        }
-        
-        setDocument(mockDocument)
+
+        const { documentsService } = await import('@/lib/api/documents')
+        const doc = await documentsService.getDocument(documentId)
+        setDocument(doc)
       } catch (err) {
+        console.error('Failed to load document:', err)
         setError('Failed to load document')
       } finally {
         setLoading(false)
@@ -96,12 +60,12 @@ export default function DocumentViewerPage() {
 
   const handleDeleteDocument = async () => {
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      console.log('Document deleted:', documentId)
+      const { documentsService } = await import('@/lib/api/documents')
+      await documentsService.deleteDocument(documentId)
       router.push('/dashboard?tab=documents')
     } catch (err) {
       console.error('Failed to delete document:', err)
+      setError('Failed to delete document')
     }
   }
 
@@ -109,13 +73,22 @@ export default function DocumentViewerPage() {
     const units = ['B', 'KB', 'MB', 'GB']
     let size = bytes
     let unitIndex = 0
-    
+
     while (size >= 1024 && unitIndex < units.length - 1) {
       size /= 1024
       unitIndex++
     }
-    
+
     return `${size.toFixed(1)} ${units[unitIndex]}`
+  }
+
+  const formatDate = (date: string | Date) => {
+    const dateObj = typeof date === 'string' ? new Date(date) : date
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }).format(dateObj)
   }
 
   if (!user) {
@@ -188,20 +161,20 @@ export default function DocumentViewerPage() {
                   <div className="flex items-center gap-2 text-sm text-gray-500">
                     <span>{document.filename}</span>
                     <span>•</span>
-                    <span>{document.pageCount} pages</span>
+                    <span>{document.totalPages} pages</span>
                     <span>•</span>
-                    <span>{formatFileSize(document.size)}</span>
+                    <span>{formatFileSize(document.fileSizeBytes)}</span>
                   </div>
                 </div>
               </Flex>
               
               <Flex align="center" gap="md">
-                <Badge 
-                  variant={document.status === 'completed' ? 'success' : document.status === 'processing' ? 'warning' : 'error'}
+                <Badge
+                  variant={document.processingStatus === 'completed' ? 'success' : document.processingStatus === 'processing' ? 'warning' : 'error'}
                   size="sm"
                 >
-                  {document.status === 'completed' ? '✓ Processed' : 
-                   document.status === 'processing' ? '⏳ Processing' : 
+                  {document.processingStatus === 'completed' ? '✓ Processed' :
+                   document.processingStatus === 'processing' ? '⏳ Processing' :
                    '⚠ Error'}
                 </Badge>
                 
@@ -244,7 +217,7 @@ export default function DocumentViewerPage() {
                       {views.map((view) => (
                         <Button
                           key={view.id}
-                          variant={activeView === view.id ? 'default' : 'ghost'}
+                          variant={activeView === view.id ? 'primary' : 'ghost'}
                           size="sm"
                           onClick={() => setActiveView(view.id as ViewMode)}
                           className={`justify-start ${isSidebarCollapsed ? 'px-2' : 'px-3'}`}
@@ -264,57 +237,49 @@ export default function DocumentViewerPage() {
             <div className={`${isSidebarCollapsed ? 'col-span-11' : 'col-span-9'}`}>
               {activeView === 'overview' && (
                 <Stack spacing="lg">
-                  <DocumentMetadata 
+                  <DocumentMetadata
                     document={document}
-                    showFullMetadata={true}
                     className="mb-6"
                   />
                   
                   <Grid cols={1} responsive={{ lg: 2 }} gap="lg">
-                    <DocumentSummary 
-                      documentId={document.id}
-                      showActions={true}
-                      expandable={false}
+                    <DocumentSummary
+                      enrichment={document.enrichment as any}
+                      abstract={document.abstract}
+                      compact={true}
                     />
-                    
-                    <DocumentOutline 
-                      documentId={document.id}
-                      onSectionClick={(section) => console.log('Navigate to:', section)}
-                      showSearch={false}
-                      maxHeight="400px"
+
+                    <DocumentOutline
+                      outline={document.outline as any}
                     />
                   </Grid>
                 </Stack>
               )}
 
               {activeView === 'outline' && (
-                <DocumentOutline 
-                  documentId={document.id}
-                  onSectionClick={(section) => console.log('Navigate to:', section)}
-                  showSearch={true}
-                  expandable={true}
+                <DocumentOutline
+                  outline={document.outline as any}
                 />
               )}
 
               {activeView === 'summary' && (
-                <DocumentSummary 
-                  documentId={document.id}
-                  showActions={true}
-                  expandable={true}
+                <DocumentSummary
+                  enrichment={document.enrichment as any}
+                  abstract={document.abstract}
                 />
               )}
 
               {activeView === 'search' && (
-                <DocumentSearch 
-                  documentId={document.id}
+                <DocumentSearch
+                  documentId={document.documentId}
                   onResultClick={(result) => console.log('Navigate to result:', result)}
                 />
               )}
 
               {activeView === 'chat' && (
                 <StreamingChatIntegrated
-                  documentId={document.id}
-                  onSessionCreated={(session) => console.log('Chat session created:', session)}
+                  documentId={document.documentId}
+                  conversationId=''
                   onMessageSent={(message) => console.log('Message sent:', message)}
                   onMessageReceived={(message) => console.log('Message received:', message)}
                   onError={(error) => console.error('Chat error:', error)}

@@ -17,7 +17,8 @@ settings = get_settings()
 
 class EmbeddingConfig:
     """Configuration for embedding generation."""
-    DEFAULT_MODEL = getattr(settings, 'EMBEDDING_MODEL', 'text-embedding-3-small')
+    # text-embedding-3-small
+    DEFAULT_MODEL = getattr(settings, 'EMBEDDING_MODEL', 'gemini/gemini-embedding-001')
     BATCH_SIZE = getattr(settings, 'EMBEDDING_BATCH_SIZE', 100)  # OpenAI allows larger batches
     VECTOR_DIMENSION = 1536  # for text-embedding-3-small
     MAX_RETRIES = getattr(settings, 'EMBEDDING_MAX_RETRIES', 3)
@@ -48,9 +49,9 @@ class EmbeddingService:
     async def initialize(self):
         """Initialize the embedding service."""
         if self._api_key is None:
-            self._api_key = getattr(settings, 'OPENAI_API_KEY', None)
+            self._api_key = getattr(settings, 'GEMINI_API_KEY', None)
             if not self._api_key:
-                raise EmbeddingError("OPENAI_API_KEY not configured")
+                raise EmbeddingError("GEMINI_API_KEY not configured")
             
             self._model_version = self._get_model_version()
             logger.info(f"Embedding service initialized with model: {self.model_name}")

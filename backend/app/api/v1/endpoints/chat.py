@@ -68,14 +68,14 @@ class ChatResponse(BaseModel):
 class SummaryResponse(BaseModel):
     """Response model for document summary."""
     summary: str
-    document_id: str
-    processing_time_ms: float
+    documentId: str
+    processingTimeMs: float
 
 
 class SuggestedQuestionsResponse(BaseModel):
     """Response model for suggested questions."""
     questions: List[str]
-    document_id: str
+    documentId: str
 
 
 class ConversationCreateRequest(BaseModel):
@@ -92,20 +92,20 @@ class ConversationCreateRequest(BaseModel):
 class ConversationResponse(BaseModel):
     """Response model for conversation."""
     id: str
-    user_id: str
-    document_id: str
+    userId: str
+    documentId: str
     title: str
     description: Optional[str]
     status: str
-    message_count: int
-    total_tokens_used: int
-    last_message_at: Optional[str]
-    model_used: Optional[str]
+    messageCount: int
+    totalTokensUsed: int
+    lastMessageAt: Optional[str]
+    modelUsed: Optional[str]
     temperature: float
-    max_tokens: int
-    context_window_size: int
-    created_at: str
-    updated_at: str
+    maxTokens: int
+    contextWindowSize: int
+    createdAt: str
+    updatedAt: str
 
 
 class ConversationListResponse(BaseModel):
@@ -119,25 +119,25 @@ class ConversationListResponse(BaseModel):
 class MessageResponse(BaseModel):
     """Response model for chat message."""
     id: str
-    session_id: str
-    user_id: str
+    sessionId: str
+    userId: str
     content: str
     role: str
-    sequence_number: int
-    token_count: Optional[int]
-    retrieved_chunks: Optional[List[str]]
-    chunks_used_count: int
-    retrieval_query: Optional[str]
-    retrieval_score: Optional[float]
-    model_used: Optional[str]
-    processing_time_ms: Optional[int]
-    retrieval_time_ms: Optional[int]
+    sequenceNumber: int
+    tokenCount: Optional[int]
+    retrievedChunks: Optional[List[str]]
+    chunksUsedCount: int
+    retrievalQuery: Optional[str]
+    retrievalScore: Optional[float]
+    modelUsed: Optional[str]
+    processingTimeMs: Optional[int]
+    retrievalTimeMs: Optional[int]
     status: str
-    user_rating: Optional[int]
-    user_feedback: Optional[str]
-    is_helpful: Optional[bool]
-    created_at: str
-    completed_at: Optional[str]
+    userRating: Optional[int]
+    userFeedback: Optional[str]
+    isHelpful: Optional[bool]
+    createdAt: str
+    completedAt: Optional[str]
 
 
 class ConversationHistoryResponse(BaseModel):
@@ -338,8 +338,8 @@ async def get_document_summary(
         
         return SummaryResponse(
             summary=summary,
-            document_id=str(request.document_id),
-            processing_time_ms=processing_time
+            documentId=str(request.document_id),
+            processingTimeMs=processing_time
         )
         
     except Exception as e:
@@ -363,7 +363,7 @@ async def get_suggested_questions(
         
         return SuggestedQuestionsResponse(
             questions=questions,
-            document_id=str(request.document_id)
+            documentId=str(request.document_id)
         )
         
     except Exception as e:
@@ -433,20 +433,20 @@ async def create_conversation(
             
             return ConversationResponse(
                 id=str(result['id']),
-                user_id=str(result['user_id']),
-                document_id=str(result['document_id']),
+                userId=str(result['user_id']),
+                documentId=str(result['document_id']),
                 title=result['title'],
                 description=result['description'],
                 status=result['status'],
-                message_count=result['message_count'],
-                total_tokens_used=result['total_tokens_used'],
-                last_message_at=result['last_message_at'].isoformat() if result['last_message_at'] else None,
-                model_used=result['model_used'],
+                messageCount=result['message_count'],
+                totalTokensUsed=result['total_tokens_used'],
+                lastMessageAt=result['last_message_at'].isoformat() if result['last_message_at'] else None,
+                modelUsed=result['model_used'],
                 temperature=result['temperature'],
-                max_tokens=result['max_tokens'],
-                context_window_size=result['context_window_size'],
-                created_at=result['created_at'].isoformat(),
-                updated_at=result['updated_at'].isoformat()
+                maxTokens=result['max_tokens'],
+                contextWindowSize=result['context_window_size'],
+                createdAt=result['created_at'].isoformat(),
+                updatedAt=result['updated_at'].isoformat()
             )
             
     except Exception as e:
@@ -507,20 +507,20 @@ async def list_conversations(
             for row in conversations_result:
                 conversations.append(ConversationResponse(
                     id=str(row['id']),
-                    user_id=str(row['user_id']),
-                    document_id=str(row['document_id']),
+                    userId=str(row['user_id']),
+                    documentId=str(row['document_id']),
                     title=row['title'],
                     description=row['description'],
                     status=row['status'],
-                    message_count=row['message_count'],
-                    total_tokens_used=row['total_tokens_used'],
-                    last_message_at=row['last_message_at'].isoformat() if row['last_message_at'] else None,
-                    model_used=row['model_used'],
+                    messageCount=row['message_count'],
+                    totalTokensUsed=row['total_tokens_used'],
+                    lastMessageAt=row['last_message_at'].isoformat() if row['last_message_at'] else None,
+                    modelUsed=row['model_used'],
                     temperature=row['temperature'],
-                    max_tokens=row['max_tokens'],
-                    context_window_size=row['context_window_size'],
-                    created_at=row['created_at'].isoformat(),
-                    updated_at=row['updated_at'].isoformat()
+                    maxTokens=row['max_tokens'],
+                    contextWindowSize=row['context_window_size'],
+                    createdAt=row['created_at'].isoformat(),
+                    updatedAt=row['updated_at'].isoformat()
                 ))
             
             return ConversationListResponse(
@@ -565,45 +565,45 @@ async def get_conversation_history(
             
             conversation = ConversationResponse(
                 id=str(conversation_result['id']),
-                user_id=str(conversation_result['user_id']),
-                document_id=str(conversation_result['document_id']),
+                userId=str(conversation_result['user_id']),
+                documentId=str(conversation_result['document_id']),
                 title=conversation_result['title'],
                 description=conversation_result['description'],
                 status=conversation_result['status'],
-                message_count=conversation_result['message_count'],
-                total_tokens_used=conversation_result['total_tokens_used'],
-                last_message_at=conversation_result['last_message_at'].isoformat() if conversation_result['last_message_at'] else None,
-                model_used=conversation_result['model_used'],
+                messageCount=conversation_result['message_count'],
+                totalTokensUsed=conversation_result['total_tokens_used'],
+                lastMessageAt=conversation_result['last_message_at'].isoformat() if conversation_result['last_message_at'] else None,
+                modelUsed=conversation_result['model_used'],
                 temperature=conversation_result['temperature'],
-                max_tokens=conversation_result['max_tokens'],
-                context_window_size=conversation_result['context_window_size'],
-                created_at=conversation_result['created_at'].isoformat(),
-                updated_at=conversation_result['updated_at'].isoformat()
+                maxTokens=conversation_result['max_tokens'],
+                contextWindowSize=conversation_result['context_window_size'],
+                createdAt=conversation_result['created_at'].isoformat(),
+                updatedAt=conversation_result['updated_at'].isoformat()
             )
             
             messages = []
             for row in messages_result:
                 messages.append(MessageResponse(
                     id=str(row['id']),
-                    session_id=str(row['session_id']),
-                    user_id=str(row['user_id']),
+                    sessionId=str(row['session_id']),
+                    userId=str(row['user_id']),
                     content=row['content'],
                     role=row['role'],
-                    sequence_number=row['sequence_number'],
-                    token_count=row['token_count'],
-                    retrieved_chunks=[str(chunk_id) for chunk_id in row['retrieved_chunks']] if row['retrieved_chunks'] else None,
-                    chunks_used_count=row['chunks_used_count'],
-                    retrieval_query=row['retrieval_query'],
-                    retrieval_score=row['retrieval_score'],
-                    model_used=row['model_used'],
-                    processing_time_ms=row['processing_time_ms'],
-                    retrieval_time_ms=row['retrieval_time_ms'],
+                    sequenceNumber=row['sequence_number'],
+                    tokenCount=row['token_count'],
+                    retrievedChunks=[str(chunk_id) for chunk_id in row['retrieved_chunks']] if row['retrieved_chunks'] else None,
+                    chunksUsedCount=row['chunks_used_count'],
+                    retrievalQuery=row['retrieval_query'],
+                    retrievalScore=row['retrieval_score'],
+                    modelUsed=row['model_used'],
+                    processingTimeMs=row['processing_time_ms'],
+                    retrievalTimeMs=row['retrieval_time_ms'],
                     status=row['status'],
-                    user_rating=row['user_rating'],
-                    user_feedback=row['user_feedback'],
-                    is_helpful=row['is_helpful'],
-                    created_at=row['created_at'].isoformat(),
-                    completed_at=row['completed_at'].isoformat() if row['completed_at'] else None
+                    userRating=row['user_rating'],
+                    userFeedback=row['user_feedback'],
+                    isHelpful=row['is_helpful'],
+                    createdAt=row['created_at'].isoformat(),
+                    completedAt=row['completed_at'].isoformat() if row['completed_at'] else None
                 ))
             
             return ConversationHistoryResponse(

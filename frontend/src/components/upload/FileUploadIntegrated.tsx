@@ -8,23 +8,12 @@
 import React, { useState, useRef, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { documentsService } from '@/lib/api'
-import { Document, DocumentUploadRequest, DocumentProcessingStatus } from '@/lib/api/types'
+import { Document, DocumentUploadRequest, DocumentProcessingStatus, UploadingFile } from '@/lib/api/types'
 import { Button, Badge, Card, CardContent, LoadingState } from '@/components/ui'
 import { Stack, Flex } from '@/components/layout'
 import { ErrorMessage } from '@/components/error'
 import { DragDropUpload } from '@/components/upload'
 import { UploadQueue } from '@/components/upload'
-
-interface UploadingFile {
-  id: string
-  name: string
-  size: number
-  progress: number
-  status: 'pending' | 'uploading' | 'processing' | 'completed' | 'error'
-  error?: string
-  file?: File
-  documentId?: string
-}
 
 interface FileUploadIntegratedProps {
   onUploadComplete?: (document: Document) => void

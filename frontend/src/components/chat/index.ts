@@ -1,5 +1,4 @@
 // Chat Components
-export { default as StreamingChat } from './StreamingChat'
 export { default as StreamingChatIntegrated } from './StreamingChatIntegrated'
 export { default as ChatMessage } from './ChatMessage'
 export { default as TypingIndicator } from './TypingIndicator'

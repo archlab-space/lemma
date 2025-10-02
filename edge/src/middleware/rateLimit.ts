@@ -123,13 +123,13 @@ export const apiRateLimit = createRateLimitMiddleware({
 
 export const streamingRateLimit = createRateLimitMiddleware({
 	windowMs: 60 * 1000, // 1 minute
-	maxRequests: 10, // 10 streaming requests per minute
+	maxRequests: 1000, // 10 streaming requests per minute
 });
 
 // Chat-specific rate limits
 export const chatRateLimit = createRateLimitMiddleware({
 	windowMs: 5 * 60 * 1000, // 5 minutes
-	maxRequests: 50, // 50 chat operations per 5 minutes
+	maxRequests: 1000, // 50 chat operations per 5 minutes
 });
 
 export const conversationRateLimit = createRateLimitMiddleware({
@@ -139,7 +139,7 @@ export const conversationRateLimit = createRateLimitMiddleware({
 
 export const chatStreamingRateLimit = createRateLimitMiddleware({
 	windowMs: 60 * 1000, // 1 minute
-	maxRequests: 15, // 15 chat streaming requests per minute (more lenient than general streaming)
+	maxRequests: 1000, // 15 chat streaming requests per minute (more lenient than general streaming)
 });
 
 export const feedbackRateLimit = createRateLimitMiddleware({

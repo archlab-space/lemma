@@ -85,7 +85,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     if (isError && message.content === 'Failed to get response') {
       return (
         <div className="text-red-600">
-          <p className="mb-2">Sorry, I couldn't generate a response.</p>
+          <p className="mb-2">Sorry, I couldn&apos;t generate a response.</p>
           {onRetry && (
             <Button size="sm" variant="outline" onClick={onRetry}>
               Try Again
@@ -120,7 +120,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
           onClick={() => setShowSources(!showSources)}
           className="p-0 text-blue-600 hover:text-blue-700 mb-2"
         >
-          <Flex gap="xs" align="center">
+          <Flex gap="sm" align="center">
             <svg 
               className={`w-3 h-3 transition-transform ${showSources ? 'rotate-90' : ''}`}
               fill="none" 
@@ -152,7 +152,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                       </p>
                     )}
                     <p className="text-xs text-blue-700 leading-relaxed truncate">
-                      "{source.content}"
+                      &ldquo;{source.content}&rdquo;
                     </p>
                   </div>
                 </Flex>
@@ -175,7 +175,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
           onClick={() => setShowFullMetadata(!showFullMetadata)}
           className="p-0 text-xs text-gray-500 hover:text-gray-700"
         >
-          <Flex gap="xs" align="center">
+          <Flex gap="sm" align="center">
             <svg 
               className={`w-3 h-3 transition-transform ${showFullMetadata ? 'rotate-90' : ''}`}
               fill="none" 
@@ -255,7 +255,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
           
           {/* Action buttons */}
           {!isSending && !isStreaming && (
-            <Flex gap="xs">
+            <Flex gap="sm">
               {onCopy && (
                 <Button
                   size="sm"

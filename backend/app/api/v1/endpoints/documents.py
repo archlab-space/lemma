@@ -156,7 +156,7 @@ async def get_documents(
         documents = []
         for doc in result['documents']:
             documents.append({
-                "id": str(doc.id),
+                "documentId": str(doc.id),
                 "userId": str(doc.user_id),
                 "filename": doc.filename,
                 "originalFilename": doc.original_filename,

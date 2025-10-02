@@ -55,6 +55,7 @@ export interface Document {
   totalWords?: number
   totalChunks?: number
   outline?: DocumentOutline
+  language?: string
 }
 
 export interface DocumentUploadRequest {
@@ -99,47 +100,43 @@ export interface DuplicateCheckResponse {
   existingDocument?: Document
 }
 
+// Upload UI Types
+export interface UploadingFile {
+  id: string
+  name: string
+  size: number
+  progress: number
+  status: 'pending' | 'uploading' | 'processing' | 'completed' | 'error'
+  error?: string
+  file?: File
+  documentId?: string
+}
+
 // Chat Types (aligned with database schema)
 export interface ChatMessage {
   id: string
-  session_id: string
-  user_id: string
+  conversationId: string
+  userId: string
   content: string
   role: 'user' | 'assistant' | 'system'
-  sequence_number: number
-  token_count?: number
-  retrieved_chunks?: string[]
-  chunks_used_count: number
-  retrieval_query?: string
-  retrieval_score?: number
-  model_used?: string
-  processing_time_ms?: number
-  retrieval_time_ms?: number
+  sequenceNumber: number
+  tokenCount?: number
+  retrievedChunks?: string[]
+  chunksUsedCount: number
+  retrievalQuery?: string
+  retrievalScore?: number
+  modelUsed?: string
+  processingTimeMs?: number
+  retrievalTimeMs?: number
   status: 'pending' | 'processing' | 'completed' | 'failed' | 'edited'
-  user_rating?: number
-  user_feedback?: string
-  is_helpful?: boolean
-  created_at: string
-  completed_at?: string
+  userRating?: number
+  userFeedback?: string
+  isHelpful?: boolean
+  createdAt: string
+  completedAt?: string
 }
 
-export interface ChatSession {
-  id: string
-  user_id: string
-  document_id: string
-  title: string
-  description?: string
-  status: 'active' | 'archived' | 'deleted'
-  message_count: number
-  total_tokens_used: number
-  last_message_at?: string
-  model_used?: string
-  temperature: number
-  max_tokens: number
-  context_window_size: number
-  created_at: string
-  updated_at: string
-}
+
 
 export interface ChatRequest {
   question: string
@@ -200,33 +197,33 @@ export interface SearchRequest {
   }
 }
 
-export interface ConversationResponse {
+export interface ChatConversation {
   id: string
-  user_id: string
-  document_id: string
+  userId: string
+  documentId: string
   title: string
   description?: string
-  status: string
-  message_count: number
-  total_tokens_used: number
-  last_message_at?: string
-  model_used?: string
+  status: 'active' | 'archived' | 'deleted'
+  messageCount: number
+  totalTokensUsed: number
+  lastMessageAt?: string
+  modelUsed?: string
   temperature: number
-  max_tokens: number
-  context_window_size: number
-  created_at: string
-  updated_at: string
+  maxTokens: number
+  contextWindowSize: number
+  createdAt: string
+  updatedAt: string
 }
 
 export interface ConversationListResponse {
-  conversations: ConversationResponse[]
+  conversations: ChatConversation[]
   total_count: number
   page: number
   page_size: number
 }
 
 export interface ConversationHistoryResponse {
-  conversation: ConversationResponse
+  conversation: ChatConversation
   messages: ChatMessage[]
 }
 

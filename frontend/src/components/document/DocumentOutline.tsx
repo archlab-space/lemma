@@ -1,160 +1,83 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Input } from '@/components/ui'
 import { Stack, Flex } from '@/components/layout'
+import { LoadingState } from '@/components/ui'
 
 interface OutlineItem {
-  id: string
   title: string
   level: number
-  page: number
-  children?: OutlineItem[]
-  anchor?: string
+  type?: 'introduction' | 'methods' | 'results' | 'discussion' | 'conclusion' | 'other'
+  page?: number
 }
 
 interface DocumentOutlineProps {
-  outline: OutlineItem[]
-  currentSection?: string
-  onSectionSelect?: (item: OutlineItem) => void
-  searchable?: boolean
-  collapsible?: boolean
-  showPageNumbers?: boolean
+  outline?: OutlineItem[]
   className?: string
 }
 
 const DocumentOutline: React.FC<DocumentOutlineProps> = ({
-  outline,
-  currentSection,
-  onSectionSelect,
-  searchable = true,
-  collapsible = true,
-  showPageNumbers = true,
+  outline = [],
   className = '',
 }) => {
   const [searchTerm, setSearchTerm] = useState('')
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [expandedLevels, setExpandedLevels] = useState<Set<number>>(new Set([1]))
+
+  // Parse outline if it's a string (JSONB from API might be serialized)
+  const parsedOutline = React.useMemo(() => {
+    if (!outline) return []
+    if (typeof outline === 'string') {
+      try {
+        return JSON.parse(outline)
+      } catch {
+        return []
+      }
+    }
+    if (Array.isArray(outline)) return outline
+    return []
+  }, [outline])
 
   // Filter outline based on search term
   const filteredOutline = React.useMemo(() => {
-    if (!searchTerm) return outline
+    if (!searchTerm) return parsedOutline
 
-    const filterItems = (items: OutlineItem[]): OutlineItem[] => {
-      return items.reduce((filtered: OutlineItem[], item) => {
-        const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase())
-        const childMatches = item.children ? filterItems(item.children) : []
-        
-        if (matchesSearch || childMatches.length > 0) {
-          filtered.push({
-            ...item,
-            children: childMatches.length > 0 ? childMatches : item.children
-          })
-        }
-        
-        return filtered
-      }, [])
-    }
+    return parsedOutline.filter(item =>
+      item.title.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [parsedOutline, searchTerm])
 
-    return filterItems(outline)
-  }, [outline, searchTerm])
-
-  const toggleExpanded = (itemId: string) => {
-    const newExpanded = new Set(expandedItems)
-    if (expandedItems.has(itemId)) {
-      newExpanded.delete(itemId)
+  const toggleLevel = (level: number) => {
+    const newExpanded = new Set(expandedLevels)
+    if (expandedLevels.has(level)) {
+      newExpanded.delete(level)
     } else {
-      newExpanded.add(itemId)
+      newExpanded.add(level)
     }
-    setExpandedItems(newExpanded)
+    setExpandedLevels(newExpanded)
   }
 
   const expandAll = () => {
-    const allIds = new Set<string>()
-    const addIds = (items: OutlineItem[]) => {
-      items.forEach(item => {
-        if (item.children && item.children.length > 0) {
-          allIds.add(item.id)
-          addIds(item.children)
-        }
-      })
-    }
-    addIds(outline)
-    setExpandedItems(allIds)
+    const allLevels = new Set(parsedOutline.map(item => item.level))
+    setExpandedLevels(allLevels)
   }
 
   const collapseAll = () => {
-    setExpandedItems(new Set())
+    setExpandedLevels(new Set([1]))
   }
 
-  const renderOutlineItem = (item: OutlineItem, depth = 0) => {
-    const hasChildren = item.children && item.children.length > 0
-    const isExpanded = expandedItems.has(item.id)
-    const isCurrent = currentSection === item.id
-    const indentClass = `ml-${Math.min(depth * 4, 16)}`
-
-    return (
-      <div key={item.id}>
-        <div
-          className={`flex items-center justify-between p-2 rounded-md cursor-pointer transition-colors ${
-            isCurrent 
-              ? 'bg-blue-100 text-blue-900' 
-              : 'hover:bg-gray-50'
-          } ${indentClass}`}
-          onClick={() => onSectionSelect?.(item)}
-        >
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            {hasChildren && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  toggleExpanded(item.id)
-                }}
-                className="p-0 h-auto min-w-0 w-4"
-              >
-                <svg 
-                  className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Button>
-            )}
-            {!hasChildren && <div className="w-4" />}
-            
-            <span 
-              className={`text-sm truncate ${
-                item.level === 1 ? 'font-semibold' : 
-                item.level === 2 ? 'font-medium' : 
-                'font-normal'
-              }`}
-              title={item.title}
-            >
-              {item.title}
-            </span>
-          </div>
-
-          {showPageNumbers && (
-            <Badge variant="default" size="sm">
-              p. {item.page}
-            </Badge>
-          )}
-        </div>
-
-        {hasChildren && isExpanded && (
-          <div className="ml-2">
-            {item.children!.map(child => renderOutlineItem(child, depth + 1))}
-          </div>
-        )}
-      </div>
-    )
+  const getTypeColor = (type?: string) => {
+    switch (type) {
+      case 'introduction': return 'text-blue-600'
+      case 'methods': return 'text-purple-600'
+      case 'results': return 'text-green-600'
+      case 'discussion': return 'text-orange-600'
+      case 'conclusion': return 'text-red-600'
+      default: return 'text-gray-600'
+    }
   }
 
-  if (outline.length === 0) {
+  if (!parsedOutline || parsedOutline.length === 0) {
     return (
       <Card variant="outlined" className={className}>
         <CardContent className="p-6 text-center">
@@ -165,7 +88,7 @@ const DocumentOutline: React.FC<DocumentOutlineProps> = ({
           </div>
           <h3 className="text-sm font-medium text-gray-900 mb-1">No Outline Available</h3>
           <p className="text-sm text-gray-500">
-            This document doesn't have a table of contents or the outline hasn't been processed yet.
+            This document doesn&apos;t have a table of contents or the outline hasn&apos;t been processed yet.
           </p>
         </CardContent>
       </Card>
@@ -177,68 +100,79 @@ const DocumentOutline: React.FC<DocumentOutlineProps> = ({
       <CardHeader className="pb-2">
         <Flex justify="between" align="center">
           <CardTitle className="text-base">Document Outline</CardTitle>
-          
-          <Flex gap="xs">
-            {filteredOutline.length > 0 && (
-              <>
-                <Button size="sm" variant="ghost" onClick={expandAll}>
-                  Expand All
-                </Button>
-                <Button size="sm" variant="ghost" onClick={collapseAll}>
-                  Collapse All
-                </Button>
-              </>
-            )}
-            
-            {collapsible && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setIsCollapsed(!isCollapsed)}
-              >
-                <svg 
-                  className={`w-4 h-4 transition-transform ${isCollapsed ? 'rotate-180' : ''}`}
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                </svg>
-              </Button>
-            )}
+
+          <Flex gap="sm">
+            <Button size="sm" variant="ghost" onClick={expandAll}>
+              Expand All
+            </Button>
+            <Button size="sm" variant="ghost" onClick={collapseAll}>
+              Collapse All
+            </Button>
           </Flex>
         </Flex>
 
-        {searchable && !isCollapsed && (
-          <Input
-            placeholder="Search sections..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            leftIcon={
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            }
-            className="mt-3"
-          />
-        )}
+        <Input
+          placeholder="Search sections..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          leftIcon={
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          }
+          className="mt-3"
+        />
       </CardHeader>
 
-      {!isCollapsed && (
-        <CardContent className="pt-2">
-          {filteredOutline.length > 0 ? (
-            <Stack spacing="xs" className="max-h-96 overflow-y-auto">
-              {filteredOutline.map(item => renderOutlineItem(item))}
-            </Stack>
-          ) : searchTerm ? (
-            <div className="text-center py-6">
-              <p className="text-sm text-gray-500">
-                No sections found matching "{searchTerm}"
-              </p>
-            </div>
-          ) : null}
-        </CardContent>
-      )}
+      <CardContent className="pt-2">
+        {filteredOutline.length > 0 ? (
+          <Stack spacing="xs" className="max-h-96 overflow-y-auto">
+            {filteredOutline.map((item, index) => {
+              const isExpanded = expandedLevels.has(item.level)
+              const indentClass = item.level > 1 ? `ml-${Math.min((item.level - 1) * 4, 12)}` : ''
+
+              return (
+                <div
+                  key={index}
+                  className={`flex items-center justify-between p-2 rounded-md hover:bg-gray-50 transition-colors ${indentClass}`}
+                  style={{ display: item.level === 1 || isExpanded ? 'flex' : 'none' }}
+                >
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {item.level > 1 && (
+                      <div className="w-4 h-4 flex items-center justify-center">
+                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                      </div>
+                    )}
+
+                    <span
+                      className={`text-sm truncate ${
+                        item.level === 1 ? 'font-semibold' :
+                        item.level === 2 ? 'font-medium' :
+                        'font-normal'
+                      } ${getTypeColor(item.type)}`}
+                      title={item.title}
+                    >
+                      {item.title}
+                    </span>
+                  </div>
+
+                  {item.page && (
+                    <Badge variant="default" size="sm">
+                      p. {item.page}
+                    </Badge>
+                  )}
+                </div>
+              )
+            })}
+          </Stack>
+        ) : searchTerm ? (
+          <div className="text-center py-6">
+            <p className="text-sm text-gray-500">
+              No sections found matching &quot;{searchTerm}&quot;
+            </p>
+          </div>
+        ) : null}
+      </CardContent>
     </Card>
   )
 }

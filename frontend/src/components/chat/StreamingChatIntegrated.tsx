@@ -8,7 +8,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { chatService } from '@/lib/api'
-import { ChatMessage, ChatSession, StreamingChatResponse } from '@/lib/api/types'
+import { ChatMessage, ChatConversation, StreamingChatResponse } from '@/lib/api/types'
 import { Card, CardContent, Button, Input, Badge } from '@/components/ui'
 import { Stack, Flex } from '@/components/layout'
 import { ErrorMessage } from '@/components/error'
@@ -17,8 +17,8 @@ import TypingIndicator from './TypingIndicator'
 
 interface StreamingChatIntegratedProps {
   documentId: string
-  sessionId?: string
-  onSessionCreated?: (session: ChatSession) => void
+  conversationId: string
+  initialMessages?: ChatMessage[]
   onMessageSent?: (message: ChatMessage) => void
   onMessageReceived?: (message: ChatMessage) => void
   onError?: (error: string) => void
@@ -30,8 +30,8 @@ interface StreamingChatIntegratedProps {
 
 const StreamingChatIntegrated: React.FC<StreamingChatIntegratedProps> = ({
   documentId,
-  sessionId: initialSessionId,
-  onSessionCreated,
+  conversationId,
+  initialMessages = [],
   onMessageSent,
   onMessageReceived,
   onError,
@@ -41,67 +41,64 @@ const StreamingChatIntegrated: React.FC<StreamingChatIntegratedProps> = ({
   className = ''
 }) => {
   const { user } = useAuth()
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(initialSessionId)
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
+  const [currentConversationId, setCurrentConversationId] = useState<string | undefined>(conversationId)
   const [inputValue, setInputValue] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamingContent, setStreamingContent] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const pendingMessageRef = useRef<string | null>(null)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // Load existing messages when session changes
+  // Update messages when initialMessages changes
   useEffect(() => {
-    if (currentSessionId) {
-      loadMessages()
-    }
-  }, [currentSessionId])
+    setMessages(initialMessages)
+  }, [initialMessages])
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
     scrollToBottom()
   }, [messages, streamingContent])
 
-  const loadMessages = async () => {
-    if (!currentSessionId) return
-    
-    try {
-      setLoading(true)
-      const response = await chatService.getMessages(currentSessionId, { limit: 50 })
-      setMessages(response.data || [])
-      setError(null)
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load messages'
-      setError(errorMessage)
-      onError?.(errorMessage)
-    } finally {
-      setLoading(false)
+  // Cleanup abort controller on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
     }
-  }
+  }, [])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
+  const submitMessage = async () => {
     if (!user || !inputValue.trim() || isStreaming || disabled) return
 
     const messageContent = inputValue.trim()
     setInputValue('')
     setError(null)
     
-    // Create user message
+    // Generate unique ID for tracking this message
+    const messageId = crypto.randomUUID()
+    pendingMessageRef.current = messageId
+    
+    // Create user message - sessionId will be updated after session creation if needed
     const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
+      id: messageId,
+      conversationId: conversationId,
+      userId: user.id,
       content: messageContent,
       role: 'user',
-      timestamp: new Date().toISOString(),
-      sessionId: currentSessionId || ''
+      sequenceNumber: messages.length + 1,
+      chunksUsedCount: 0,
+      status: 'pending',
+      createdAt: new Date().toISOString()
     }
 
     setMessages(prev => [...prev, userMessage])
@@ -111,83 +108,67 @@ const StreamingChatIntegrated: React.FC<StreamingChatIntegratedProps> = ({
     setIsStreaming(true)
     setStreamingContent('')
 
-    // Create abort controller for this request
+    // Clean up previous abort controller and create new one
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
     abortControllerRef.current = new AbortController()
 
     try {
-      if (!currentSessionId) {
-        // Use quickChat to create session and get first response
-        await chatService.quickChat(
-          documentId,
-          messageContent,
-          (chunk: string) => {
-            setStreamingContent(prev => prev + chunk)
-          },
-          (response: StreamingChatResponse & { session: ChatSession }) => {
-            // Session created and response completed
-            setCurrentSessionId(response.sessionId)
-            onSessionCreated?.(response.session)
+      // Send message to existing conversation
+      await chatService.sendConversationMessage(
+        conversationId,
+        {
+          question: messageContent
+        },
+        (chunk: string) => {
+          setStreamingContent(prev => prev + chunk)
+        },
+        (response: StreamingChatResponse) => {
+          // Response completed
+          const assistantMessage: ChatMessage = {
+            id: response.id,
+            conversationId: response.session_id,
+            userId: response.user_id,
+            content: response.content,
+            role: 'assistant',
+            sequenceNumber: response.sequence_number,
+            tokenCount: response.token_count,
+            retrievedChunks: response.retrieved_chunks,
+            chunksUsedCount: response.chunks_used_count,
+            retrievalQuery: response.retrieval_query,
+            retrievalScore: response.retrieval_score,
+            modelUsed: response.model_used,
+            processingTimeMs: response.processing_time_ms,
+            retrievalTimeMs: response.retrieval_time_ms,
+            status: 'completed',
+            userRating: response.user_rating,
+            userFeedback: response.user_feedback,
+            isHelpful: response.is_helpful,
+            createdAt: response.created_at,
+            completedAt: response.completed_at
+          }
 
-            const assistantMessage: ChatMessage = {
-              id: response.messageId,
-              content: response.content,
-              role: 'assistant',
-              timestamp: new Date().toISOString(),
-              sessionId: response.sessionId,
-              sources: response.sources,
-              metadata: response.metadata
-            }
-
-            setMessages(prev => [...prev.slice(0, -1), userMessage, assistantMessage])
-            onMessageReceived?.(assistantMessage)
-            setIsStreaming(false)
-            setStreamingContent('')
-          },
-          (error: Error) => {
-            setError(error.message)
-            onError?.(error.message)
-            setIsStreaming(false)
-            setStreamingContent('')
-          },
-          abortControllerRef.current.signal
-        )
-      } else {
-        // Send message to existing session
-        await chatService.sendMessage(
-          {
-            message: messageContent,
-            sessionId: currentSessionId,
-            documentId
-          },
-          (chunk: string) => {
-            setStreamingContent(prev => prev + chunk)
-          },
-          (response: StreamingChatResponse) => {
-            // Response completed
-            const assistantMessage: ChatMessage = {
-              id: response.messageId,
-              content: response.content,
-              role: 'assistant',
-              timestamp: new Date().toISOString(),
-              sessionId: response.sessionId,
-              sources: response.sources,
-              metadata: response.metadata
-            }
-
-            setMessages(prev => [...prev, assistantMessage])
-            onMessageReceived?.(assistantMessage)
-            setIsStreaming(false)
-            setStreamingContent('')
-          },
-          (error: Error) => {
-            setError(error.message)
-            onError?.(error.message)
-            setIsStreaming(false)
-            setStreamingContent('')
-          },
-          abortControllerRef.current.signal
-        )
-      }
+          setMessages(prev => [...prev, assistantMessage])
+          onMessageReceived?.(assistantMessage)
+          setIsStreaming(false)
+          setStreamingContent('')
+          pendingMessageRef.current = null
+        },
+        (error: Error) => {
+          setError(error.message)
+          onError?.(error.message)
+          setIsStreaming(false)
+          setStreamingContent('')
+          
+          // Remove the pending user message on error
+          if (pendingMessageRef.current) {
+            setMessages(prev => prev.filter(msg => msg.id !== pendingMessageRef.current))
+            pendingMessageRef.current = null
+          }
+        },
+        abortControllerRef.current.signal
+      )
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to send message'
       setError(errorMessage)
@@ -195,8 +176,11 @@ const StreamingChatIntegrated: React.FC<StreamingChatIntegratedProps> = ({
       setIsStreaming(false)
       setStreamingContent('')
       
-      // Remove the user message on error
-      setMessages(prev => prev.slice(0, -1))
+      // Remove the pending user message on error
+      if (pendingMessageRef.current) {
+        setMessages(prev => prev.filter(msg => msg.id !== pendingMessageRef.current))
+        pendingMessageRef.current = null
+      }
     }
   }
 
@@ -209,10 +193,15 @@ const StreamingChatIntegrated: React.FC<StreamingChatIntegratedProps> = ({
     setStreamingContent('')
   }
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await submitMessage()
+  }
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      handleSubmit(e as any)
+      submitMessage()
     }
   }
 
@@ -270,9 +259,24 @@ const StreamingChatIntegrated: React.FC<StreamingChatIntegratedProps> = ({
                 {messages.map((message) => (
                   <ChatMessageComponent
                     key={message.id}
-                    message={message}
-                    onSourceClick={(source) => console.log('Navigate to:', source)}
-                    showSources={true}
+                    message={{
+                      id: message.id,
+                      content: message.content,
+                      role: message.role === 'system' ? 'assistant' : message.role,
+                      timestamp: new Date(message.createdAt),
+                      status: message.status === 'completed' ? 'sent' : message.status === 'pending' ? 'sending' : 'error',
+                      sources: message.retrievedChunks?.map((chunk, index) => ({
+                        page: index + 1,
+                        section: `Chunk ${index + 1}`,
+                        content: chunk
+                      })),
+                      metadata: {
+                        model: message.modelUsed,
+                        tokens: message.tokenCount,
+                        processingTime: message.processingTimeMs
+                      }
+                    }}
+                    onSourceClick={(page) => console.log('Navigate to page:', page)}
                     showMetadata={true}
                   />
                 ))}
@@ -285,11 +289,10 @@ const StreamingChatIntegrated: React.FC<StreamingChatIntegratedProps> = ({
                         id: 'streaming',
                         content: streamingContent,
                         role: 'assistant',
-                        timestamp: new Date().toISOString(),
-                        sessionId: currentSessionId || ''
+                        timestamp: new Date(),
+                        status: 'sending'
                       }}
                       isStreaming={true}
-                      showSources={false}
                       showMetadata={false}
                     />
                     <TypingIndicator className="absolute bottom-2 right-2" />

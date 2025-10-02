@@ -233,8 +233,8 @@ class DocumentService:
                 if result['processing_status'] not in ['completed']:
                     raise ValueError(f"Document is not ready for chat. Current status: {result['processing_status']}")
                 
-                if not result['total_chunks'] or result['total_chunks'] == 0:
-                    raise ValueError("Document has no processed content chunks available for chat")
+                # if not result['total_chunks'] or result['total_chunks'] == 0:
+                #     raise ValueError("Document has no processed content chunks available for chat")
                 
                 return dict(result)
                 

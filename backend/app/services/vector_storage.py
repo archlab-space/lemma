@@ -161,30 +161,33 @@ class VectorStorage:
     
     
     async def similarity_search(
-        self, 
-        query_embedding: List[float], 
+        self,
+        query_embedding: List[float],
         document_id: Optional[UUID] = None,
         limit: int = 10,
         min_similarity: float = 0.0
     ) -> List[Dict[str, Any]]:
         """
         Search for similar chunks using cosine similarity.
-        
+
         Args:
             query_embedding: The query vector
             document_id: Optional document ID to filter by
             limit: Maximum number of results
             min_similarity: Minimum cosine similarity threshold
-            
+
         Returns:
             List of similar chunks with similarity scores
         """
         try:
             async with get_db_session() as session:
+                # Convert embedding list to PostgreSQL vector format
+                embedding_str = '[' + ','.join(map(str, query_embedding)) + ']'
+
                 # Build the query
                 where_clause = ""
-                params: List[Any] = [query_embedding, limit]
-                
+                params: List[Any] = [embedding_str, limit]
+
                 if document_id:
                     where_clause = "WHERE dc.document_id = $3"
                     params.append(document_id)

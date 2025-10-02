@@ -185,7 +185,7 @@ class DocumentProcessor:
             ai_enhancement_status = processing_result.get("ai_enhancement_status", {"success": False, "error": None})
             
             # Process chunks through embedding pipeline
-            # chunk_processing_result = await chunk_processor.process_document_chunks(document_id, document.user_id, chunks)
+            chunk_processing_result = await chunk_processor.process_document_chunks(document_id, document.user_id, chunks)
             chunk_processing_result = {}
             chunk_count = chunk_processing_result.get('stored_chunks', 0)
             embedding_status = chunk_processing_result.get('embedding_status', {})

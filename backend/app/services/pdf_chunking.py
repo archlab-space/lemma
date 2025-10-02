@@ -12,6 +12,11 @@ from .pdf_models import ProcessingConfig
 logger = get_logger(__name__)
 
 
+def sanitize_text(text: str) -> str:
+    """Remove null bytes and other problematic characters for PostgreSQL."""
+    return text.replace('\x00', '')
+
+
 class PDFChunker:
     """Handles PDF chunking with block-based approach."""
     
@@ -35,7 +40,7 @@ class PDFChunker:
             
             for block in blocks:
                 if block.get("type") == "text" and block.get("text", "").strip():
-                    block_text = block["text"].strip()
+                    block_text = sanitize_text(block["text"].strip())
                     block_words = block_text.split()
                     word_count = len(block_words)
                     

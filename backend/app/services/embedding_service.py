@@ -104,7 +104,8 @@ class EmbeddingService:
                 response = await litellm.aembedding(
                     model=self.model_name,
                     input=texts,
-                    api_key=self._api_key
+                    api_key=self._api_key,
+                    dimensions=self.vector_dimension
                 )
                 
                 # Extract embeddings from response

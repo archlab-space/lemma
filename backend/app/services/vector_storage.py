@@ -91,8 +91,9 @@ class VectorStorage:
                 continue
                 
             # Prepare chunk data
-            content = chunk.get('content', '')
-            embedding = chunk.get('embedding', [])
+            content = chunk.get('content', '').replace('\x00', '')  # Remove null bytes for PostgreSQL
+            embedding_list = chunk.get('embedding', [])
+            embedding = '[' + ','.join(map(str, embedding_list)) + ']' if embedding_list else None
             page_number = chunk.get('page_number', 1)
             chunk_index = chunk.get('chunk_index', 0)
             word_count = chunk.get('word_count', 0)

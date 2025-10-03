@@ -4,20 +4,14 @@ import React, { useState } from 'react'
 import { Button, Alert } from '@/components/ui'
 import { Stack, Flex } from '@/components/layout'
 import { FocusTrap } from '@/components/a11y'
-
-interface DocumentInfo {
-  id: string
-  name: string
-  uploadDate: Date
-  size: number
-  chatCount?: number
-}
+import type { Document } from '@/lib/api/types'
 
 interface DeleteDocumentDialogProps {
-  document: DocumentInfo
+  document: Document
   isOpen: boolean
   onClose: () => void
   onConfirm: (documentId: string) => Promise<void>
+  onSuccess?: () => void
   className?: string
 }
 
@@ -26,6 +20,7 @@ const DeleteDocumentDialog: React.FC<DeleteDocumentDialogProps> = ({
   isOpen,
   onClose,
   onConfirm,
+  onSuccess,
   className = '',
 }) => {
   const [isDeleting, setIsDeleting] = useState(false)
@@ -37,6 +32,7 @@ const DeleteDocumentDialog: React.FC<DeleteDocumentDialogProps> = ({
       setError(null)
       await onConfirm(document.id)
       onClose()
+      onSuccess?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete document')
     } finally {
@@ -58,12 +54,12 @@ const DeleteDocumentDialog: React.FC<DeleteDocumentDialogProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  const formatDate = (date: Date) => {
+  const formatDate = (dateString: string) => {
     return new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
-    }).format(date)
+    }).format(new Date(dateString))
   }
 
   if (!isOpen) return null
@@ -122,13 +118,14 @@ const DeleteDocumentDialog: React.FC<DeleteDocumentDialogProps> = ({
                   <Stack spacing="sm">
                     <div>
                       <h4 className="text-sm font-medium text-gray-900 truncate">
-                        {document.name}
+                        {document.title || document.filename}
                       </h4>
                       <div className="mt-1 text-xs text-gray-500 space-y-1">
-                        <p>Size: {formatFileSize(document.size)}</p>
-                        <p>Uploaded: {formatDate(document.uploadDate)}</p>
-                        {document.chatCount !== undefined && (
-                          <p>Chat sessions: {document.chatCount}</p>
+                        <p>Filename: {document.filename}</p>
+                        <p>Size: {formatFileSize(document.fileSizeBytes)}</p>
+                        <p>Uploaded: {formatDate(document.createdAt)}</p>
+                        {document.totalPages && (
+                          <p>Pages: {document.totalPages}</p>
                         )}
                       </div>
                     </div>

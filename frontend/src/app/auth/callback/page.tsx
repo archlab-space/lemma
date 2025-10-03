@@ -28,8 +28,8 @@ export default function AuthCallbackPage() {
 
         if (data.session) {
           setStatus('success')
-          // Redirect to dashboard or intended page
-          router.push('/dashboard')
+          // Redirect to home or intended page
+          router.push('/')
         } else {
           setError('No session found')
           setStatus('error')
@@ -86,7 +86,7 @@ export default function AuthCallbackPage() {
           </svg>
         </div>
         <h1 className="text-xl font-semibold text-gray-900 mb-2">Authentication Successful</h1>
-        <p className="text-gray-600">Redirecting to your dashboard...</p>
+        <p className="text-gray-600">Redirecting to your home...</p>
       </div>
     </div>
   )

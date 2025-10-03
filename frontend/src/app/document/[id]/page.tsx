@@ -58,15 +58,13 @@ export default function DocumentViewerPage() {
     }
   }, [documentId])
 
-  const handleDeleteDocument = async () => {
-    try {
-      const { documentsService } = await import('@/lib/api/documents')
-      await documentsService.deleteDocument(documentId)
-      router.push('/dashboard?tab=documents')
-    } catch (err) {
-      console.error('Failed to delete document:', err)
-      setError('Failed to delete document')
-    }
+  const handleDeleteDocument = async (docId: string) => {
+    const { documentsService } = await import('@/lib/api/documents')
+    await documentsService.deleteDocument(docId)
+  }
+
+  const handleDeleteSuccess = () => {
+    router.push('/')
   }
 
   const formatFileSize = (bytes: number): string => {
@@ -121,9 +119,6 @@ export default function DocumentViewerPage() {
           </div>
           <h2 className="text-xl font-semibold text-gray-900">Document Not Found</h2>
           <p className="text-gray-600">The requested document could not be found or loaded.</p>
-          <Button asChild>
-            <Link href="/dashboard?tab=documents">Back to Documents</Link>
-          </Button>
         </Stack>
       </div>
     )
@@ -146,11 +141,11 @@ export default function DocumentViewerPage() {
             <Flex justify="between" align="center" className="h-16">
               <Flex align="center" gap="lg">
                 <Button variant="ghost" asChild>
-                  <Link href="/dashboard" className="flex items-center gap-2">
+                  <Link href="/" className="flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
-                    Dashboard
+                    Home
                   </Link>
                 </Button>
                 <div className="h-6 w-px bg-gray-300" />
@@ -244,13 +239,13 @@ export default function DocumentViewerPage() {
                   
                   <Grid cols={1} responsive={{ lg: 2 }} gap="lg">
                     <DocumentSummary
-                      enrichment={document.enrichment as any}
+                      enrichment={document.enrichment}
                       abstract={document.abstract}
                       compact={true}
                     />
 
                     <DocumentOutline
-                      outline={document.outline as any}
+                      outline={document.outline}
                     />
                   </Grid>
                 </Stack>
@@ -258,27 +253,27 @@ export default function DocumentViewerPage() {
 
               {activeView === 'outline' && (
                 <DocumentOutline
-                  outline={document.outline as any}
+                  outline={document.outline}
                 />
               )}
 
               {activeView === 'summary' && (
                 <DocumentSummary
-                  enrichment={document.enrichment as any}
+                  enrichment={document.enrichment}
                   abstract={document.abstract}
                 />
               )}
 
               {activeView === 'search' && (
                 <DocumentSearch
-                  documentId={document.documentId}
+                  documentId={document.id}
                   onResultClick={(result) => console.log('Navigate to result:', result)}
                 />
               )}
 
               {activeView === 'chat' && (
                 <StreamingChatIntegrated
-                  documentId={document.documentId}
+                  documentId={document.id}
                   conversationId=''
                   onMessageSent={(message) => console.log('Message sent:', message)}
                   onMessageReceived={(message) => console.log('Message received:', message)}
@@ -292,12 +287,15 @@ export default function DocumentViewerPage() {
         </Container>
 
         {/* Delete Dialog */}
-        <DeleteDocumentDialog
-          isOpen={showDeleteDialog}
-          onClose={() => setShowDeleteDialog(false)}
-          onConfirm={handleDeleteDocument}
-          documentTitle={document.title}
-        />
+        {document && (
+          <DeleteDocumentDialog
+            document={document}
+            isOpen={showDeleteDialog}
+            onClose={() => setShowDeleteDialog(false)}
+            onConfirm={handleDeleteDocument}
+            onSuccess={handleDeleteSuccess}
+          />
+        )}
       </div>
     </ErrorBoundary>
   )

@@ -106,9 +106,6 @@ export default function ChatSessionPage() {
             <Button variant="outline" asChild>
               <Link href="/">Back to Homepage</Link>
             </Button>
-            <Button asChild>
-              <Link href="/dashboard">Go to Dashboard</Link>
-            </Button>
           </Flex>
         </Stack>
       </div>
@@ -153,10 +150,6 @@ export default function ChatSessionPage() {
                   onClick={() => setShowDocumentDetails(!showDocumentDetails)}
                 >
                   {showDocumentDetails ? 'Hide' : 'Show'} Document Info
-                </Button>
-                
-                <Button variant="ghost" asChild>
-                  <Link href="/dashboard">Dashboard</Link>
                 </Button>
               </Flex>
             </Flex>

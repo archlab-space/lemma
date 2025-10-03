@@ -69,7 +69,6 @@
 
 ### 3.2 User Management
 - [x] Create user profile components
-- [x] Implement user dashboard
 - [x] Add user settings management
 - [x] Create user document library view
 - [x] Implement user session management

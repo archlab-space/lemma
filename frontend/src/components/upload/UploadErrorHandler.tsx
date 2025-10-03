@@ -163,22 +163,6 @@ const UploadErrorHandler: React.FC<UploadErrorHandlerProps> = ({
       )
     }
 
-    if (error.type === 'quota') {
-      buttons.push(
-        <Button
-          key="manage"
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            // Navigate to document management or upgrade page
-            window.location.href = '/dashboard'
-          }}
-        >
-          Manage Storage
-        </Button>
-      )
-    }
-
     if (['server', 'unknown'].includes(error.type) && onContactSupport) {
       buttons.push(
         <Button

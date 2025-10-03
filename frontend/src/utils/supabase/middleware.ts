@@ -50,7 +50,7 @@ export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Define protected routes that require authentication
-  const protectedRoutes = ['/dashboard', '/documents', '/settings', '/api']
+  const protectedRoutes = ['/documents', '/settings', '/api']
   
   // Define auth routes that should redirect if already authenticated
   const authRoutes = ['/auth', '/auth/reset-password']
@@ -72,11 +72,10 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  // Redirect to dashboard if accessing auth routes with valid user
   if (isAuthRoute && user) {
     // Check if there's a redirect parameter
     const redirectTo = request.nextUrl.searchParams.get('redirect')
-    const destination = redirectTo && redirectTo.startsWith('/') ? redirectTo : '/dashboard'
+    const destination = redirectTo && redirectTo.startsWith('/') ? redirectTo : '/'
     return NextResponse.redirect(new URL(destination, request.url))
   }
 

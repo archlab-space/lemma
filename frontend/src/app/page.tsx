@@ -23,7 +23,7 @@ interface DocumentWithConversations extends Document {
 }
 
 export default function HomePage() {
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading, signOut } = useAuth()
   const { state, loadDocuments, addNotification } = useApp()
   const router = useRouter()
   
@@ -35,6 +35,14 @@ export default function HomePage() {
   const conversations = state.conversations
   const loading = state.loading.documents
   const conversationsLoading = state.loading.conversations
+
+  const getInitials = (email: string) => {
+    return email.charAt(0).toUpperCase()
+  }
+
+  const handleSignOut = async () => {
+    await signOut()
+  }
 
   // Enrich documents with conversation data
   const documentsWithConversations: DocumentWithConversations[] = documents.map(doc => {
@@ -231,18 +239,36 @@ export default function HomePage() {
             <Flex justify="between" align="center" className="h-16">
               <Flex align="center" gap="lg">
                 <h1 className="text-2xl font-bold text-blue-600">Lemma</h1>
-                <p className="text-gray-600">Start a Conversation</p>
               </Flex>
               
               <Flex align="center" gap="md">
-                <Button variant="ghost" asChild>
-                  <Link href="/dashboard">Dashboard</Link>
-                </Button>
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-medium text-blue-600">
-                    {user.email?.charAt(0).toUpperCase()}
-                  </span>
-                </div>
+                <span className="text-sm text-gray-700">
+                  Welcome, {user.user_metadata?.full_name || user.email}
+                </span>
+                
+                <Flex align="center" gap="sm">
+                  {user.user_metadata?.avatar_url ? (
+                    <img
+                      className="h-8 w-8 rounded-full"
+                      src={user.user_metadata.avatar_url}
+                      alt="Profile"
+                    />
+                  ) : (
+                    <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
+                      <span className="text-sm font-medium text-white">
+                        {getInitials(user.email)}
+                      </span>
+                    </div>
+                  )}
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSignOut}
+                  >
+                    Sign Out
+                  </Button>
+                </Flex>
               </Flex>
             </Flex>
           </Container>

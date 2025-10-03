@@ -21,15 +21,34 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
   }
 }
 
-export interface DocumentOutline {
-  title: string,
-  level: number,
-  type: string
+export interface DocumentOutlineItem {
+  title: string
+  level: number
+  type?: 'introduction' | 'methods' | 'results' | 'discussion' | 'conclusion' | 'other'
+  page?: number
+}
+
+export interface DocumentEnrichment {
+  research_questions?: string[]
+  key_contributions?: string[]
+  methodology_summary?: string
+  reading_time_minutes?: number
+  readability_score?: number
+  difficulty_level?: 'beginner' | 'intermediate' | 'advanced'
+  related_topics?: string[]
+  key_concepts?: string[]
+  technical_terms?: Array<{ term: string; definition: string }>
+  future_work_suggestions?: string[]
+  citation_impact_prediction?: {
+    predicted_citations: number
+    confidence: number
+    reasoning: string
+  }
 }
 
 // Document Types
 export interface Document {
-  documentId: string
+  id: string
   userId: string
   filename: string
   originalFilename: string
@@ -37,13 +56,7 @@ export interface Document {
   fileHash: string
   mimeType: string
   storagePath: string
-  storageBucket?: string
-  processingStatus: 'pending' | 'processing' | 'completed' | 'failed'
-  processingError?: string
-  processingStartedAt?: string
-  processingCompletedAt?: string
-  createdAt: string
-  updatedAt: string
+  storageBucket: string
   title?: string
   authors?: string[]
   abstract?: string
@@ -51,11 +64,30 @@ export interface Document {
   publicationYear?: number
   journal?: string
   keywords?: string[]
+  language?: string
+  processingStatus: 'pending' | 'processing' | 'completed' | 'failed' | 'deleted'
+  processingStartedAt?: string
+  processingCompletedAt?: string
+  processingError?: string
   totalPages?: number
   totalWords?: number
   totalChunks?: number
-  outline?: DocumentOutline
-  language?: string
+  outline?: DocumentOutlineItem[]
+  enrichment?: DocumentEnrichment
+  aiEnhancementStatus?: {
+    success: boolean
+    error?: string
+    timestamp: string
+  }
+  embeddingStatus?: {
+    status: string
+    modelName?: string
+    totalChunks?: number
+    [key: string]: unknown
+  }
+  createdAt: string
+  updatedAt: string
+  deletedAt?: string
 }
 
 export interface DocumentUploadRequest {

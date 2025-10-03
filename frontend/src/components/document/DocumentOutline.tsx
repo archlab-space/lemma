@@ -1,19 +1,12 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Input } from '@/components/ui'
 import { Stack, Flex } from '@/components/layout'
-import { LoadingState } from '@/components/ui'
-
-interface OutlineItem {
-  title: string
-  level: number
-  type?: 'introduction' | 'methods' | 'results' | 'discussion' | 'conclusion' | 'other'
-  page?: number
-}
+import type { DocumentOutlineItem } from '@/lib/api/types'
 
 interface DocumentOutlineProps {
-  outline?: OutlineItem[]
+  outline?: DocumentOutlineItem[]
   className?: string
 }
 
@@ -25,11 +18,11 @@ const DocumentOutline: React.FC<DocumentOutlineProps> = ({
   const [expandedLevels, setExpandedLevels] = useState<Set<number>>(new Set([1]))
 
   // Parse outline if it's a string (JSONB from API might be serialized)
-  const parsedOutline = React.useMemo(() => {
+  const parsedOutline = React.useMemo<DocumentOutlineItem[]>(() => {
     if (!outline) return []
     if (typeof outline === 'string') {
       try {
-        return JSON.parse(outline)
+        return JSON.parse(outline) as DocumentOutlineItem[]
       } catch {
         return []
       }
@@ -42,28 +35,24 @@ const DocumentOutline: React.FC<DocumentOutlineProps> = ({
   const filteredOutline = React.useMemo(() => {
     if (!searchTerm) return parsedOutline
 
-    return parsedOutline.filter(item =>
+    return parsedOutline.filter((item: DocumentOutlineItem) =>
       item.title.toLowerCase().includes(searchTerm.toLowerCase())
     )
   }, [parsedOutline, searchTerm])
 
-  const toggleLevel = (level: number) => {
-    const newExpanded = new Set(expandedLevels)
-    if (expandedLevels.has(level)) {
-      newExpanded.delete(level)
-    } else {
-      newExpanded.add(level)
-    }
-    setExpandedLevels(newExpanded)
-  }
-
   const expandAll = () => {
-    const allLevels = new Set(parsedOutline.map(item => item.level))
+    const allLevels = new Set<number>(parsedOutline.map((item: DocumentOutlineItem) => item.level))
     setExpandedLevels(allLevels)
   }
 
   const collapseAll = () => {
     setExpandedLevels(new Set([1]))
+  }
+
+  const getIndentStyle = (level: number) => {
+    if (level <= 1) return {}
+    const indent = Math.min((level - 1) * 16, 48) // 16px = 1rem, max 48px
+    return { marginLeft: `${indent}px` }
   }
 
   const getTypeColor = (type?: string) => {
@@ -127,15 +116,17 @@ const DocumentOutline: React.FC<DocumentOutlineProps> = ({
       <CardContent className="pt-2">
         {filteredOutline.length > 0 ? (
           <Stack spacing="xs" className="max-h-96 overflow-y-auto">
-            {filteredOutline.map((item, index) => {
-              const isExpanded = expandedLevels.has(item.level)
-              const indentClass = item.level > 1 ? `ml-${Math.min((item.level - 1) * 4, 12)}` : ''
+            {filteredOutline.map((item: DocumentOutlineItem, index: number) => {
+              const shouldShow = item.level === 1 || expandedLevels.has(item.level - 1)
+              const indentStyle = getIndentStyle(item.level)
+
+              if (!shouldShow) return null
 
               return (
                 <div
-                  key={index}
-                  className={`flex items-center justify-between p-2 rounded-md hover:bg-gray-50 transition-colors ${indentClass}`}
-                  style={{ display: item.level === 1 || isExpanded ? 'flex' : 'none' }}
+                  key={`${item.title}-${index}`}
+                  className="flex items-center justify-between p-2 rounded-md hover:bg-gray-50 transition-colors"
+                  style={indentStyle}
                 >
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     {item.level > 1 && (

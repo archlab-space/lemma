@@ -246,7 +246,7 @@ const DocumentSearch: React.FC<DocumentSearchProps> = ({
                 </svg>
               </div>
               <p className="text-sm text-gray-500">
-                No results found for "{query}"
+                No results found for &ldquo;{query}&rdquo;
               </p>
             </div>
           )}
@@ -276,7 +276,7 @@ const DocumentSearch: React.FC<DocumentSearchProps> = ({
                       <Stack spacing="sm">
                         <Flex justify="between" align="start">
                           <div className="flex-1">
-                            <Flex gap="xs" align="center" className="mb-1">
+                            <Flex gap="sm" align="center" className="mb-1">
                               <Badge variant="default" size="sm">
                                 Page {result.page}
                               </Badge>

@@ -1,30 +1,12 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Skeleton } from '@/components/ui'
+import React, { useState } from 'react'
+import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@/components/ui'
 import { Stack, Flex } from '@/components/layout'
-import { LoadingState } from '@/components/ui'
-
-interface EnrichmentData {
-  research_questions?: string[]
-  key_contributions?: string[]
-  methodology_summary?: string
-  reading_time_minutes?: number
-  readability_score?: number
-  difficulty_level?: 'beginner' | 'intermediate' | 'advanced'
-  related_topics?: string[]
-  key_concepts?: string[]
-  technical_terms?: Array<{ term: string; definition: string }>
-  future_work_suggestions?: string[]
-  citation_impact_prediction?: {
-    predicted_citations: number
-    confidence: number
-    reasoning: string
-  }
-}
+import type { DocumentEnrichment } from '@/lib/api/types'
 
 interface DocumentSummaryProps {
-  enrichment?: EnrichmentData
+  enrichment?: DocumentEnrichment
   abstract?: string | null
   compact?: boolean
   className?: string
@@ -43,7 +25,7 @@ const DocumentSummary: React.FC<DocumentSummaryProps> = ({
     if (!enrichment) return null
     if (typeof enrichment === 'string') {
       try {
-        return JSON.parse(enrichment) as EnrichmentData
+        return JSON.parse(enrichment) as DocumentEnrichment
       } catch {
         return null
       }
@@ -139,7 +121,7 @@ const DocumentSummary: React.FC<DocumentSummaryProps> = ({
           {parsedEnrichment?.related_topics && parsedEnrichment.related_topics.length > 0 && (
             <div>
               <h3 className="text-base font-semibold text-gray-900 mb-2">Key Topics</h3>
-              <Flex gap="xs" wrap="wrap">
+              <Flex gap="sm" wrap="wrap">
                 {parsedEnrichment.related_topics.map((topic, index) => (
                   <Badge key={index} variant="default" size="sm">
                     {topic}
@@ -193,7 +175,7 @@ const DocumentSummary: React.FC<DocumentSummaryProps> = ({
           {parsedEnrichment?.key_concepts && parsedEnrichment.key_concepts.length > 0 && !compact && (
             <div>
               <h3 className="text-base font-semibold text-gray-900 mb-2">Key Concepts</h3>
-              <Flex gap="xs" wrap="wrap">
+              <Flex gap="sm" wrap="wrap">
                 {parsedEnrichment.key_concepts.map((concept, index) => (
                   <Badge key={index} variant="default" size="sm">
                     {concept}

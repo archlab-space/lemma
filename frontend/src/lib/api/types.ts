@@ -118,7 +118,7 @@ export interface DocumentUploadResponse {
 
 export interface DocumentProcessingStatus {
   id: string
-  processingStatus: 'pending' | 'processing' | 'completed' | 'failed'
+  processingStatus: 'pending' | 'processing' | 'completed' | 'failed' | 'deleted'
   processingError?: string
   processingStartedAt?: string
   processingCompletedAt?: string

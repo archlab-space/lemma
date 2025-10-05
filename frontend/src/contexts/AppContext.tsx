@@ -168,15 +168,15 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'UPDATE_DOCUMENT':
       return {
         ...state,
-        documents: state.documents.map(doc => 
-          doc.documentId === action.payload.documentId ? action.payload : doc
+        documents: state.documents.map(doc =>
+          doc.id === action.payload.id ? action.payload : doc
         )
       }
     
     case 'REMOVE_DOCUMENT':
       return {
         ...state,
-        documents: state.documents.filter(doc => doc.documentId !== action.payload)
+        documents: state.documents.filter(doc => doc.id !== action.payload)
       }
     
     case 'SET_DOCUMENTS_LOADING':
@@ -447,7 +447,7 @@ export function AppProvider({ children }: AppProviderProps) {
   }, [])
 
   const removeDocument = useCallback((documentId: string) => {
-    const document = state.documents.find(d => d.documentId === documentId)
+    const document = state.documents.find(d => d.id === documentId)
     dispatch({ type: 'REMOVE_DOCUMENT', payload: documentId })
     
     if (document) {

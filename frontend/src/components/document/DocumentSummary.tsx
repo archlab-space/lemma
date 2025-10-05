@@ -110,8 +110,8 @@ const DocumentSummary: React.FC<DocumentSummaryProps> = ({
           {/* Abstract */}
           {abstract && (
             <div>
-              <h3 className="text-base font-semibold text-gray-900 mb-2">Abstract</h3>
-              <p className="text-sm text-gray-700 leading-relaxed">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Abstract</h3>
+              <p className="font-serif text-base text-gray-800 leading-loose">
                 {abstract}
               </p>
             </div>
@@ -120,10 +120,10 @@ const DocumentSummary: React.FC<DocumentSummaryProps> = ({
           {/* Key Topics / Related Topics */}
           {parsedEnrichment?.related_topics && parsedEnrichment.related_topics.length > 0 && (
             <div>
-              <h3 className="text-base font-semibold text-gray-900 mb-2">Key Topics</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Key Topics</h3>
               <Flex gap="sm" wrap="wrap">
                 {parsedEnrichment.related_topics.map((topic, index) => (
-                  <Badge key={index} variant="default" size="sm">
+                  <Badge key={index} variant="info" size="md">
                     {topic}
                   </Badge>
                 ))}
@@ -134,12 +134,12 @@ const DocumentSummary: React.FC<DocumentSummaryProps> = ({
           {/* Research Questions */}
           {parsedEnrichment?.research_questions && parsedEnrichment.research_questions.length > 0 && (
             <div>
-              <h3 className="text-base font-semibold text-gray-900 mb-2">Research Questions</h3>
-              <ul className="text-sm text-gray-700 space-y-1">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Research Questions</h3>
+              <ul className="text-base text-gray-800 space-y-2">
                 {parsedEnrichment.research_questions.map((question, index) => (
-                  <li key={index} className="flex items-start gap-2">
-                    <span className="text-blue-500 font-bold mt-1">•</span>
-                    <span>{question}</span>
+                  <li key={index} className="flex items-start gap-3">
+                    <span className="text-cyan-600 font-bold text-lg mt-0.5">•</span>
+                    <span className="font-serif leading-relaxed">{question}</span>
                   </li>
                 ))}
               </ul>
@@ -149,12 +149,12 @@ const DocumentSummary: React.FC<DocumentSummaryProps> = ({
           {/* Key Contributions */}
           {parsedEnrichment?.key_contributions && parsedEnrichment.key_contributions.length > 0 && (
             <div>
-              <h3 className="text-base font-semibold text-gray-900 mb-2">Key Contributions</h3>
-              <ul className="text-sm text-gray-700 space-y-1">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Key Contributions</h3>
+              <ul className="text-base text-gray-800 space-y-2">
                 {parsedEnrichment.key_contributions.map((contribution, index) => (
-                  <li key={index} className="flex items-start gap-2">
-                    <span className="text-green-500 font-bold mt-1">•</span>
-                    <span>{contribution}</span>
+                  <li key={index} className="flex items-start gap-3">
+                    <span className="text-emerald-600 font-bold text-lg mt-0.5">•</span>
+                    <span className="font-serif leading-relaxed">{contribution}</span>
                   </li>
                 ))}
               </ul>
@@ -164,8 +164,8 @@ const DocumentSummary: React.FC<DocumentSummaryProps> = ({
           {/* Methodology */}
           {parsedEnrichment?.methodology_summary && (
             <div>
-              <h3 className="text-base font-semibold text-gray-900 mb-2">Methodology</h3>
-              <p className="text-sm text-gray-700 leading-relaxed">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Methodology</h3>
+              <p className="font-serif text-base text-gray-800 leading-loose">
                 {parsedEnrichment.methodology_summary}
               </p>
             </div>
@@ -174,10 +174,10 @@ const DocumentSummary: React.FC<DocumentSummaryProps> = ({
           {/* Key Concepts */}
           {parsedEnrichment?.key_concepts && parsedEnrichment.key_concepts.length > 0 && !compact && (
             <div>
-              <h3 className="text-base font-semibold text-gray-900 mb-2">Key Concepts</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Key Concepts</h3>
               <Flex gap="sm" wrap="wrap">
                 {parsedEnrichment.key_concepts.map((concept, index) => (
-                  <Badge key={index} variant="default" size="sm">
+                  <Badge key={index} variant="default" size="md">
                     {concept}
                   </Badge>
                 ))}
@@ -188,22 +188,22 @@ const DocumentSummary: React.FC<DocumentSummaryProps> = ({
           {/* Technical Terms */}
           {parsedEnrichment?.technical_terms && parsedEnrichment.technical_terms.length > 0 && !compact && (
             <div>
-              <h3 className="text-base font-semibold text-gray-900 mb-2">Technical Terms</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Technical Terms</h3>
               <Stack spacing="sm">
                 {parsedEnrichment.technical_terms.slice(0, 5).map((term, index) => {
                   const isExpanded = expandedSections.has(`term-${index}`)
                   return (
-                    <Card key={index} variant="outlined" className="bg-gray-50">
-                      <CardContent className="p-3">
+                    <Card key={index} variant="outlined" className="bg-emerald-50/30 border-emerald-200">
+                      <CardContent className="p-4">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => toggleSection(`term-${index}`)}
-                          className="p-0 h-auto font-medium text-gray-900 hover:text-blue-600 w-full justify-between"
+                          className="p-0 h-auto font-semibold text-gray-900 hover:text-emerald-700 w-full justify-start"
                         >
                           <Flex gap="sm" align="center">
                             <svg
-                              className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                              className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -215,7 +215,7 @@ const DocumentSummary: React.FC<DocumentSummaryProps> = ({
                         </Button>
 
                         {isExpanded && (
-                          <p className="text-sm text-gray-700 leading-relaxed ml-6 mt-2">
+                          <p className="font-serif text-base text-gray-800 leading-relaxed ml-7 mt-3">
                             {term.definition}
                           </p>
                         )}
@@ -230,12 +230,12 @@ const DocumentSummary: React.FC<DocumentSummaryProps> = ({
           {/* Future Work Suggestions */}
           {parsedEnrichment?.future_work_suggestions && parsedEnrichment.future_work_suggestions.length > 0 && !compact && (
             <div>
-              <h3 className="text-base font-semibold text-gray-900 mb-2">Future Work Suggestions</h3>
-              <ul className="text-sm text-gray-700 space-y-1">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Future Work Suggestions</h3>
+              <ul className="text-base text-gray-800 space-y-2">
                 {parsedEnrichment.future_work_suggestions.map((suggestion, index) => (
-                  <li key={index} className="flex items-start gap-2">
-                    <span className="text-purple-500 font-bold mt-1">•</span>
-                    <span>{suggestion}</span>
+                  <li key={index} className="flex items-start gap-3">
+                    <span className="text-cyan-600 font-bold text-lg mt-0.5">•</span>
+                    <span className="font-serif leading-relaxed">{suggestion}</span>
                   </li>
                 ))}
               </ul>
@@ -245,21 +245,21 @@ const DocumentSummary: React.FC<DocumentSummaryProps> = ({
           {/* Citation Impact Prediction */}
           {parsedEnrichment?.citation_impact_prediction && !compact && (
             <div>
-              <h3 className="text-base font-semibold text-gray-900 mb-2">Citation Impact Prediction</h3>
-              <Card variant="outlined" className="bg-blue-50">
-                <CardContent className="p-3">
-                  <Flex gap="md" align="start">
-                    <div>
-                      <div className="text-2xl font-bold text-blue-600">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Citation Impact Prediction</h3>
+              <Card variant="outlined" className="bg-gradient-to-br from-cyan-50 to-emerald-50 border-emerald-200">
+                <CardContent className="p-5">
+                  <Flex gap="lg" align="start">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-emerald-700">
                         ~{parsedEnrichment.citation_impact_prediction.predicted_citations}
                       </div>
-                      <div className="text-xs text-gray-600">Predicted Citations</div>
+                      <div className="text-sm text-gray-600 mt-1">Predicted Citations</div>
                     </div>
                     <div className="flex-1">
-                      <Badge variant="default" size="sm" className="mb-2">
+                      <Badge variant="success" size="md" className="mb-3">
                         {Math.round(parsedEnrichment.citation_impact_prediction.confidence * 100)}% confidence
                       </Badge>
-                      <p className="text-sm text-gray-700">
+                      <p className="font-serif text-base text-gray-800 leading-relaxed">
                         {parsedEnrichment.citation_impact_prediction.reasoning}
                       </p>
                     </div>

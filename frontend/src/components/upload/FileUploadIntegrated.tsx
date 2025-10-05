@@ -125,7 +125,7 @@ const FileUploadIntegrated: React.FC<FileUploadIntegratedProps> = ({
 
       if (isRetry) {
         console.log('Retrying previous upload for existing document...')
-        documentId = duplicateCheck.existingDocument!.documentId
+        documentId = duplicateCheck.existingDocument!.id
         
         // Generate new presigned URL for retry using existing document metadata
         const uploadRequest: DocumentUploadRequest = {
@@ -166,7 +166,7 @@ const FileUploadIntegrated: React.FC<FileUploadIntegratedProps> = ({
         }
 
         const documentResponse = await documentsService.createDocument(createRequest)
-        documentId = documentResponse.document.documentId
+        documentId = documentResponse.document.id
       }
 
       // Update progress after URL generation

@@ -163,7 +163,7 @@ export default function ChatSessionPage() {
             <Container size="xl" className="h-full py-6">
               <div className="h-full">
                 <StreamingChatIntegrated
-                  documentId={document.documentId}
+                  documentId={document.id}
                   conversationId={conversation.id}
                   initialMessages={messages}
                   onMessageSent={(message: ChatMessage) => {
@@ -235,7 +235,7 @@ export default function ChatSessionPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => router.push(`/document/${document.documentId}`)}
+                          onClick={() => router.push(`/document/${document.id}`)}
                           className="w-full justify-start"
                         >
                           📖 View Full Document
@@ -243,7 +243,7 @@ export default function ChatSessionPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => router.push(`/document/${document.documentId}?view=outline`)}
+                          onClick={() => router.push(`/document/${document.id}?view=outline`)}
                           className="w-full justify-start"
                         >
                           📑 Document Outline
@@ -251,7 +251,7 @@ export default function ChatSessionPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => router.push(`/document/${document.documentId}?view=search`)}
+                          onClick={() => router.push(`/document/${document.id}?view=search`)}
                           className="w-full justify-start"
                         >
                           🔍 Search Document

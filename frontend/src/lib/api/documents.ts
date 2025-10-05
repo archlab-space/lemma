@@ -157,7 +157,7 @@ class DocumentsService {
         if (cancelled) return
         
         const status: DocumentProcessingStatus = {
-          id: document.documentId,
+          id: document.id,
           processingStatus: document.processingStatus,
           processingError: document.processingError,
           processingStartedAt: document.processingStartedAt,

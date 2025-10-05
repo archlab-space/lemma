@@ -5,7 +5,7 @@ export interface FlexProps extends React.HTMLAttributes<HTMLDivElement> {
   wrap?: 'wrap' | 'wrap-reverse' | 'nowrap'
   justify?: 'start' | 'end' | 'center' | 'between' | 'around' | 'evenly'
   align?: 'start' | 'end' | 'center' | 'baseline' | 'stretch'
-  gap?: 'sm' | 'md' | 'lg' | 'xl'
+  gap?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 }
 
 const Flex = React.forwardRef<HTMLDivElement, FlexProps>(
@@ -52,6 +52,7 @@ const Flex = React.forwardRef<HTMLDivElement, FlexProps>(
     }
     
     const gapMap = gap ? {
+      xs: 'gap-1',
       sm: 'gap-2',
       md: 'gap-4',
       lg: 'gap-6',

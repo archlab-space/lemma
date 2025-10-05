@@ -57,12 +57,12 @@ const DocumentOutline: React.FC<DocumentOutlineProps> = ({
 
   const getTypeColor = (type?: string) => {
     switch (type) {
-      case 'introduction': return 'text-blue-600'
-      case 'methods': return 'text-purple-600'
-      case 'results': return 'text-green-600'
-      case 'discussion': return 'text-orange-600'
-      case 'conclusion': return 'text-red-600'
-      default: return 'text-gray-600'
+      case 'introduction': return 'text-cyan-700'
+      case 'methods': return 'text-emerald-700'
+      case 'results': return 'text-teal-700'
+      case 'discussion': return 'text-cyan-600'
+      case 'conclusion': return 'text-emerald-800'
+      default: return 'text-gray-700'
     }
   }
 
@@ -86,9 +86,9 @@ const DocumentOutline: React.FC<DocumentOutlineProps> = ({
 
   return (
     <Card variant="outlined" className={className}>
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-3">
         <Flex justify="between" align="center">
-          <CardTitle className="text-base">Document Outline</CardTitle>
+          <CardTitle>Document Outline</CardTitle>
 
           <Flex gap="sm">
             <Button size="sm" variant="ghost" onClick={expandAll}>
@@ -125,21 +125,21 @@ const DocumentOutline: React.FC<DocumentOutlineProps> = ({
               return (
                 <div
                   key={`${item.title}-${index}`}
-                  className="flex items-center justify-between p-2 rounded-md hover:bg-gray-50 transition-colors"
+                  className="flex items-center justify-between p-3 rounded-md hover:bg-emerald-50/50 transition-all cursor-pointer border border-transparent hover:border-emerald-200"
                   style={indentStyle}
                 >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
                     {item.level > 1 && (
                       <div className="w-4 h-4 flex items-center justify-center">
-                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                        <div className="w-2 h-2 rounded-full bg-emerald-300" />
                       </div>
                     )}
 
                     <span
-                      className={`text-sm truncate ${
-                        item.level === 1 ? 'font-semibold' :
-                        item.level === 2 ? 'font-medium' :
-                        'font-normal'
+                      className={`text-base truncate ${
+                        item.level === 1 ? 'font-bold' :
+                        item.level === 2 ? 'font-semibold' :
+                        'font-medium'
                       } ${getTypeColor(item.type)}`}
                       title={item.title}
                     >
@@ -148,7 +148,7 @@ const DocumentOutline: React.FC<DocumentOutlineProps> = ({
                   </div>
 
                   {item.page && (
-                    <Badge variant="default" size="sm">
+                    <Badge variant="default" size="sm" className="ml-2 shrink-0">
                       p. {item.page}
                     </Badge>
                   )}

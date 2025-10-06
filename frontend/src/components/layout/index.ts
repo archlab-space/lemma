@@ -9,3 +9,5 @@ export type { FlexProps } from './Flex'
 
 export { default as Stack } from './Stack'
 export type { StackProps } from './Stack'
+
+export { default as Header } from './Header'

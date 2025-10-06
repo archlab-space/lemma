@@ -42,33 +42,6 @@ class UserService {
   }
 
   /**
-   * Upload user avatar
-   */
-  async uploadAvatar(file: File, onProgress?: (progress: number) => void): Promise<User> {
-    // First, request upload URL
-    const uploadResponse = await apiClient.post<{ uploadUrl: string, fields?: Record<string, string> }>(
-      `${this.basePath}/avatar/upload-url`,
-      {
-        filename: file.name,
-        size: file.size,
-        contentType: file.type
-      }
-    )
-
-    // Upload the file
-    await apiClient.upload(
-      uploadResponse.data!.uploadUrl,
-      file,
-      uploadResponse.data!.fields,
-      onProgress
-    )
-
-    // Complete the upload and get updated profile
-    const response = await apiClient.post<User>(`${this.basePath}/avatar/complete`)
-    return response.data!
-  }
-
-  /**
    * Delete user avatar
    */
   async deleteAvatar(): Promise<User> {

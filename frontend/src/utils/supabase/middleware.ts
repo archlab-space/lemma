@@ -49,34 +49,47 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // Define protected routes that require authentication
-  const protectedRoutes = ['/documents', '/settings', '/api']
-  
-  // Define auth routes that should redirect if already authenticated
+  // Public routes - accessible without authentication
+  const publicRoutes = [
+    '/auth/callback',  // OAuth callback
+    '/auth/confirm',   // Email confirmation
+    '/api/webhooks',   // Webhook endpoints
+  ]
+
+  // Auth routes - redirect to home if already authenticated
   const authRoutes = ['/auth', '/auth/reset-password']
 
-  // Check if current path is protected
-  const isProtectedRoute = protectedRoutes.some(route => 
-    pathname.startsWith(route)
-  )
+  // Check if current path is public
+  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
 
   // Check if current path is an auth route
-  const isAuthRoute = authRoutes.some(route => 
-    pathname.startsWith(route)
-  )
+  const isAuthRoute = authRoutes.some(route => pathname.startsWith(route))
 
-  // Redirect to auth if accessing protected route without user
-  if (isProtectedRoute && !user) {
-    const redirectUrl = new URL('/auth', request.url)
-    redirectUrl.searchParams.set('redirect', pathname)
-    return NextResponse.redirect(redirectUrl)
+  // Allow public routes without authentication
+  if (isPublicRoute) {
+    return supabaseResponse
   }
 
+  // Redirect authenticated users away from auth pages
   if (isAuthRoute && user) {
-    // Check if there's a redirect parameter
     const redirectTo = request.nextUrl.searchParams.get('redirect')
-    const destination = redirectTo && redirectTo.startsWith('/') ? redirectTo : '/'
+    // Validate redirect URL - must be relative and start with /
+    const isValidRedirect = redirectTo &&
+                           redirectTo.startsWith('/') &&
+                           !redirectTo.startsWith('//') &&
+                           !redirectTo.includes('\\')
+    const destination = isValidRedirect ? redirectTo : '/'
     return NextResponse.redirect(new URL(destination, request.url))
+  }
+
+  // All other routes require authentication (except auth routes)
+  if (!user && !isAuthRoute) {
+    const redirectUrl = new URL('/auth', request.url)
+    // Only add redirect param for non-root paths
+    if (pathname !== '/') {
+      redirectUrl.searchParams.set('redirect', pathname)
+    }
+    return NextResponse.redirect(redirectUrl)
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.

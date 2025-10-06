@@ -7,15 +7,15 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { useApp } from '@/contexts/AppContext'
 import { documentsService, chatService } from '@/lib/api'
 import { Document, ChatConversation, UploadingFile } from '@/lib/api/types'
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge, LoadingState } from '@/components/ui'
-import { Container, Grid, Stack, Flex } from '@/components/layout'
+import { Container, Grid, Stack, Flex, Header } from '@/components/layout'
 import { FileUploadIntegrated } from '@/components/upload'
 import { ErrorBoundary } from '@/components/error'
-import Link from 'next/link'
 
 interface DocumentWithConversations extends Document {
   recentConversations?: ChatConversation[]
@@ -35,14 +35,6 @@ export default function HomePage() {
   const conversations = state.conversations
   const loading = state.loading.documents
   const conversationsLoading = state.loading.conversations
-
-  const getInitials = (email: string) => {
-    return email.charAt(0).toUpperCase()
-  }
-
-  const handleSignOut = async () => {
-    await signOut()
-  }
 
   // Enrich documents with conversation data
   const documentsWithConversations: DocumentWithConversations[] = documents.map(doc => {
@@ -233,46 +225,7 @@ export default function HomePage() {
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <nav className="bg-white shadow-sm border-b">
-          <Container size="xl">
-            <Flex justify="between" align="center" className="h-16">
-              <Flex align="center" gap="lg">
-                <h1 className="text-2xl font-bold text-blue-600">Lemma</h1>
-              </Flex>
-              
-              <Flex align="center" gap="md">
-                <span className="text-sm text-gray-700">
-                  Welcome, {user.user_metadata?.full_name || user.email}
-                </span>
-                
-                <Flex align="center" gap="sm">
-                  {user.user_metadata?.avatar_url ? (
-                    <img
-                      className="h-8 w-8 rounded-full"
-                      src={user.user_metadata.avatar_url}
-                      alt="Profile"
-                    />
-                  ) : (
-                    <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
-                      <span className="text-sm font-medium text-white">
-                        {getInitials(user.email)}
-                      </span>
-                    </div>
-                  )}
-                  
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleSignOut}
-                  >
-                    Sign Out
-                  </Button>
-                </Flex>
-              </Flex>
-            </Flex>
-          </Container>
-        </nav>
+        <Header />
 
         <Container size="xl" className="py-8">
           <div className="grid grid-cols-12 gap-8 h-full">

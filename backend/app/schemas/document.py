@@ -34,64 +34,6 @@ class DocumentCreate(DocumentBase):
         return v
 
 
-class DocumentUpdate(BaseModel):
-    """Schema for updating document information."""
-    title: Optional[str] = None
-    authors: Optional[List[str]] = None
-    abstract: Optional[str] = None
-    doi: Optional[str] = None
-    publication_year: Optional[int] = Field(None, ge=1000, le=2100)
-    journal: Optional[str] = None
-    keywords: Optional[List[str]] = None
-    processing_status: Optional[ProcessingStatus] = None
-    processing_error: Optional[str] = None
-    total_pages: Optional[int] = Field(None, ge=1)
-    total_words: Optional[int] = Field(None, ge=0)
-    total_chunks: Optional[int] = Field(None, ge=0)
-    outline: Optional[Dict[str, Any]] = None
-
-
-class DocumentResponse(DocumentBase):
-    """Schema for document response."""
-    id: UUID
-    user_id: UUID
-    file_size_bytes: int
-    file_size_mb: float
-    processing_status: ProcessingStatus
-    processing_started_at: Optional[datetime] = None
-    processing_completed_at: Optional[datetime] = None
-    processing_error: Optional[str] = None
-    total_pages: Optional[int] = None
-    total_words: Optional[int] = None
-    total_chunks: int
-    outline: Optional[Dict[str, Any]] = None
-    created_at: datetime
-    updated_at: datetime
-    
-    # Computed properties
-    is_processed: bool
-    is_processing: bool
-    has_failed: bool
-    processing_duration_seconds: Optional[float] = None
-    
-    class Config:
-        from_attributes = True
-
-
-class DocumentSummary(BaseModel):
-    """Schema for document summary information."""
-    id: UUID
-    title: Optional[str] = None
-    filename: str
-    file_size_mb: float
-    processing_status: ProcessingStatus
-    total_pages: Optional[int] = None
-    created_at: datetime
-    
-    class Config:
-        from_attributes = True
-
-
 class DocumentUploadResponse(BaseModel):
     """Schema for document upload response."""
     document_id: UUID

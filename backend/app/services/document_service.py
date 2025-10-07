@@ -2,16 +2,25 @@
 Document service for handling document CRUD operations.
 """
 
-from typing import Optional, List, Dict, Any, Union
+from typing import Optional, List, Dict, Any, Union, TypedDict
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
 
 from app.models.document import Document, ProcessingStatus
-from app.schemas.document import DocumentCreate, DocumentUpdate
+from app.schemas.document import DocumentCreate
 from app.db.session import get_db_session
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+class DocumentListResult(TypedDict):
+    """Type definition for document list result."""
+    documents: List[Document]
+    total: int
+    page: int
+    limit: int
+    total_pages: int
 
 
 class DocumentService:
@@ -75,13 +84,13 @@ class DocumentService:
     
     
     async def get_user_documents(
-        self, 
-        user_id: UUID, 
-        page: int = 1, 
+        self,
+        user_id: UUID,
+        page: int = 1,
         limit: int = 20,
         search: Optional[str] = None,
         status: Optional[ProcessingStatus] = None
-    ) -> Dict[str, Any]:
+    ) -> DocumentListResult:
         """Get paginated list of user documents."""
         offset = (page - 1) * limit
         

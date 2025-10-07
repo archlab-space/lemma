@@ -1,7 +1,8 @@
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 from uuid import UUID
 from enum import Enum
+import json
 
 from ..db.base import Base
 
@@ -16,7 +17,21 @@ class ProcessingStatus(str, Enum):
 
 class Document(Base):
     """Document model representing an uploaded PDF."""
-    
+
+    @staticmethod
+    def _parse_jsonb(value: Union[str, Dict, List, None]) -> Union[Dict, List, None]:
+        """Parse JSONB field that may be a JSON string or already parsed object."""
+        if value is None:
+            return None
+        if isinstance(value, (dict, list)):
+            return value
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except (json.JSONDecodeError, ValueError):
+                return None
+        return None
+
     def __init__(
         self,
         id: UUID,
@@ -42,7 +57,11 @@ class Document(Base):
         total_pages: Optional[int] = None,
         total_words: Optional[int] = None,
         total_chunks: int = 0,
-        outline: Optional[Dict[str, Any]] = None,
+        outline: Optional[Union[str, List[Dict[str, Any]]]] = None,
+        language: Optional[str] = None,
+        enrichment: Optional[Union[str, Dict[str, Any]]] = None,
+        embedding_status: Optional[Union[str, Dict[str, Any]]] = None,
+        ai_enhancement_status: Optional[Union[str, Dict[str, Any]]] = None,
         created_at: Optional[datetime] = None,
         updated_at: Optional[datetime] = None,
         deleted_at: Optional[datetime] = None,
@@ -71,11 +90,16 @@ class Document(Base):
         self.total_pages = total_pages
         self.total_words = total_words
         self.total_chunks = total_chunks
-        self.outline = outline or {}
+        # Parse JSONB fields that may come as strings from asyncpg
+        self.outline = self._parse_jsonb(outline)
+        self.language = language
+        self.enrichment = self._parse_jsonb(enrichment)
+        self.embedding_status = self._parse_jsonb(embedding_status)
+        self.ai_enhancement_status = self._parse_jsonb(ai_enhancement_status)
         self.created_at = created_at
         self.updated_at = updated_at
         self.deleted_at = deleted_at
-        
+
         super().__init__(**kwargs)
     
     @property
@@ -110,6 +134,41 @@ class Document(Base):
             delta = self.processing_completed_at - self.processing_started_at
             return delta.total_seconds()
         return None
+
+    def to_response_dict(self) -> Dict[str, Any]:
+        """Convert document to API response dictionary with camelCase keys."""
+        return {
+            "id": str(self.id),
+            "userId": str(self.user_id),
+            "filename": self.filename,
+            "originalFilename": self.original_filename,
+            "fileSizeBytes": self.file_size_bytes,
+            "fileHash": self.file_hash,
+            "mimeType": self.mime_type,
+            "storagePath": self.storage_path,
+            "storageBucket": self.storage_bucket,
+            "title": self.title,
+            "authors": self.authors,
+            "abstract": self.abstract,
+            "doi": self.doi,
+            "publicationYear": self.publication_year,
+            "journal": self.journal,
+            "keywords": self.keywords,
+            "language": self.language,
+            "processingStatus": self.processing_status,
+            "processingStartedAt": self.processing_started_at.isoformat() if self.processing_started_at else None,
+            "processingCompletedAt": self.processing_completed_at.isoformat() if self.processing_completed_at else None,
+            "processingError": self.processing_error,
+            "totalPages": self.total_pages,
+            "totalWords": self.total_words,
+            "totalChunks": self.total_chunks,
+            "outline": self.outline,
+            "enrichment": self.enrichment,
+            "embeddingStatus": self.embedding_status,
+            "aiEnhancementStatus": self.ai_enhancement_status,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+            "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
+        }
 
 
 class DocumentChunk(Base):

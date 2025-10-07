@@ -1,6 +1,6 @@
 from .user import UserCreate, UserUpdate, UserResponse, UserProfile
 from .document import (
-    DocumentCreate, DocumentUpdate, DocumentResponse, 
+    DocumentCreate,
     DocumentChunkResponse, DocumentUploadResponse
 )
 from .chat import (
@@ -13,7 +13,7 @@ __all__ = [
     "UserCreate", "UserUpdate", "UserResponse", "UserProfile",
     
     # Document schemas
-    "DocumentCreate", "DocumentUpdate", "DocumentResponse", 
+    "DocumentCreate",
     "DocumentChunkResponse", "DocumentUploadResponse",
     
     # Chat schemas

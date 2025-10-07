@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useApp } from '@/contexts/AppContext'
 import { documentsService, chatService } from '@/lib/api'
 import { Document, ChatConversation, UploadingFile } from '@/lib/api/types'
-import { Button, Card, CardContent, CardHeader, CardTitle, Badge, LoadingState } from '@/components/ui'
+import { Button, Card, CardContent, CardHeader, CardTitle, Badge, LoadingState, Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui'
 import { Container, Grid, Stack, Flex, Header } from '@/components/layout'
 import { FileUploadIntegrated } from '@/components/upload'
 import { ErrorBoundary } from '@/components/error'
@@ -48,6 +48,8 @@ export default function HomePage() {
 
 
   const handleDocumentSelect = (document: DocumentWithConversations) => {
+    console.log(document.enrichment)
+    
     setSelectedDocument(document)
   }
 
@@ -483,72 +485,113 @@ export default function HomePage() {
             <div className="col-span-12 lg:col-span-4">
               <div className="sticky top-8">
                 {selectedDocument ? (
-                  <Card variant="elevated">
-                    <CardHeader>
+                  <Card variant="elevated" className="flex flex-col h-[calc(100vh-8rem)]">
+                    <CardHeader className="flex-shrink-0">
                       <Flex align="center" gap="sm">
-                        <span className="text-2xl">{getStatusIcon(selectedDocument.processingStatus)}</span>
                         <div className="flex-1 min-w-0">
-                          <CardTitle className="truncate" title={selectedDocument.title || selectedDocument.filename}>
+                          <CardTitle title={selectedDocument.title || selectedDocument.filename}>
                             {selectedDocument.title || selectedDocument.filename}
                           </CardTitle>
-                          <Badge variant={getStatusColor(selectedDocument.processingStatus)} size="sm">
-                            {selectedDocument.processingStatus}
-                          </Badge>
                         </div>
                       </Flex>
                     </CardHeader>
-                    <CardContent>
-                      <Stack spacing="lg">
-                        {/* Document Info */}
-                        <div>
-                          <h4 className="font-medium text-gray-900 mb-3">Document Details</h4>
-                          <Stack spacing="sm">
-                            <Flex justify="between">
-                              <span className="text-sm text-gray-500">Pages:</span>
-                              <span className="text-sm font-medium">{selectedDocument.totalPages || 0}</span>
-                            </Flex>
-                            <Flex justify="between">
-                              <span className="text-sm text-gray-500">Size:</span>
-                              <span className="text-sm font-medium">{formatFileSize(selectedDocument.fileSizeBytes)}</span>
-                            </Flex>
-                            <Flex justify="between">
-                              <span className="text-sm text-gray-500">Uploaded:</span>
-                              <span className="text-sm font-medium">{formatDate(selectedDocument.createdAt)}</span>
-                            </Flex>
-                            {selectedDocument.processingCompletedAt && (
-                              <Flex justify="between">
-                                <span className="text-sm text-gray-500">Processed:</span>
-                                <span className="text-sm font-medium">{formatDate(selectedDocument.processingCompletedAt)}</span>
-                              </Flex>
-                            )}
-                          </Stack>
-                        </div>
+                    <CardContent className="flex-1 overflow-hidden p-0">
+                      <Tabs defaultValue="overview" className="h-full flex flex-col">
+                        <TabsList className="flex-shrink-0 px-6">
+                          <TabsTrigger value="overview">Overview</TabsTrigger>
+                          <TabsTrigger value="metadata">Metadata</TabsTrigger>
+                          <TabsTrigger value="enrichment">Insights</TabsTrigger>
+                          {selectedDocument.outline && Array.isArray(selectedDocument.outline) && selectedDocument.outline.length > 0 && (
+                            <TabsTrigger value="outline">Outline</TabsTrigger>
+                          )}
+                        </TabsList>
 
-                        {/* Metadata */}
-                        {(selectedDocument.authors || selectedDocument.abstract || selectedDocument.keywords) && (
-                          <div>
-                            <h4 className="font-medium text-gray-900 mb-3">Document Details</h4>
-                            <Stack spacing="sm">
+                        <div className="flex-1 overflow-y-auto">
+                          <TabsContent value="overview" className="p-6">
+                            <Stack spacing="md">
+                              <div>
+                                <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Document Info</h4>
+                                <Stack spacing="sm">
+                                  <Flex justify="between">
+                                    <span className="text-sm text-gray-600">Pages</span>
+                                    <span className="text-sm font-medium">{selectedDocument.totalPages || 0}</span>
+                                  </Flex>
+                                  <Flex justify="between">
+                                    <span className="text-sm text-gray-600">Words</span>
+                                    <span className="text-sm font-medium">{selectedDocument.totalWords?.toLocaleString() || 'N/A'}</span>
+                                  </Flex>
+                                  <Flex justify="between">
+                                    <span className="text-sm text-gray-600">Size</span>
+                                    <span className="text-sm font-medium">{formatFileSize(selectedDocument.fileSizeBytes)}</span>
+                                  </Flex>
+                                  <Flex justify="between">
+                                    <span className="text-sm text-gray-600">Language</span>
+                                    <span className="text-sm font-medium">{selectedDocument.language || 'N/A'}</span>
+                                  </Flex>
+                                </Stack>
+                              </div>
+
+                              <div className="border-t pt-4">
+                                <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Processing</h4>
+                                <Stack spacing="sm">
+                                  <Flex justify="between">
+                                    <span className="text-sm text-gray-600">Uploaded</span>
+                                    <span className="text-sm font-medium">{formatDate(selectedDocument.createdAt)}</span>
+                                  </Flex>
+                                  {selectedDocument.processingCompletedAt && (
+                                    <Flex justify="between">
+                                      <span className="text-sm text-gray-600">Completed</span>
+                                      <span className="text-sm font-medium">{formatDate(selectedDocument.processingCompletedAt)}</span>
+                                    </Flex>
+                                  )}
+                                  <Flex justify="between">
+                                    <span className="text-sm text-gray-600">Chunks</span>
+                                    <span className="text-sm font-medium">{selectedDocument.totalChunks || 0}</span>
+                                  </Flex>
+                                  {selectedDocument.embeddingStatus && (
+                                    <Flex justify="between">
+                                      <span className="text-sm text-gray-600">Embedding</span>
+                                      <Badge variant={selectedDocument.embeddingStatus.status === 'completed' ? 'success' : 'warning'} size="sm">
+                                        {selectedDocument.embeddingStatus.status}
+                                      </Badge>
+                                    </Flex>
+                                  )}
+                                </Stack>
+                              </div>
+
+                              {selectedDocument.processingError && (
+                                <div className="border-t pt-4">
+                                  <h4 className="text-xs font-semibold text-red-600 uppercase mb-2">Error</h4>
+                                  <p className="text-sm text-red-600">{selectedDocument.processingError}</p>
+                                </div>
+                              )}
+                            </Stack>
+                          </TabsContent>
+
+                          <TabsContent value="metadata" className="p-6">
+                            <Stack spacing="md">
                               {selectedDocument.authors && selectedDocument.authors.length > 0 && (
                                 <div>
-                                  <span className="text-sm font-medium text-gray-700">Authors:</span>
-                                  <p className="text-sm text-gray-600 mt-1">
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Authors</h4>
+                                  <p className="text-sm text-gray-700 leading-relaxed">
                                     {selectedDocument.authors.join(', ')}
                                   </p>
                                 </div>
                               )}
+
                               {selectedDocument.abstract && (
                                 <div>
-                                  <span className="text-sm font-medium text-gray-700">Abstract:</span>
-                                  <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Abstract</h4>
+                                  <p className="text-sm text-gray-700 leading-relaxed">
                                     {selectedDocument.abstract}
                                   </p>
                                 </div>
                               )}
+
                               {selectedDocument.keywords && selectedDocument.keywords.length > 0 && (
                                 <div>
-                                  <span className="text-sm font-medium text-gray-700 block mb-2">Keywords:</span>
-                                  <Flex gap="xl" wrap="wrap">
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Keywords</h4>
+                                  <Flex gap="sm" wrap="wrap">
                                     {selectedDocument.keywords.map((keyword, index) => (
                                       <Badge key={index} variant="default" size="sm">
                                         {keyword}
@@ -557,99 +600,205 @@ export default function HomePage() {
                                   </Flex>
                                 </div>
                               )}
-                            </Stack>
-                          </div>
-                        )}
 
-                        {/* Actions */}
-                        <div>
-                          <h4 className="font-medium text-gray-900 mb-3">Actions</h4>
-                          <Stack spacing="sm">
-                            {selectedDocument.processingStatus === 'completed' ? (
-                              <>
-                                <Button
-                                  onClick={() => handleStartNewChat(selectedDocument.id)}
-                                  className="w-full"
-                                >
-                                  💬 Start New Chat
-                                </Button>
-                                {selectedDocument.recentConversations && selectedDocument.recentConversations.length > 0 && (
-                                  <Button
-                                    variant="outline"
-                                    onClick={() => handleContinueConversation(selectedDocument.recentConversations![0].id)}
-                                    className="w-full"
-                                  >
-                                    🔄 Continue Last Chat
-                                  </Button>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  onClick={() => router.push(`/document/${selectedDocument.id}`)}
-                                  className="w-full"
-                                >
-                                  📖 View Document Details
-                                </Button>
-                              </>
-                            ) : selectedDocument.processingStatus === 'processing' ? (
-                              <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                                <div className="animate-spin w-6 h-6 border-2 border-yellow-500 border-t-transparent rounded-full mx-auto mb-2"></div>
-                                <p className="text-sm text-yellow-700 font-medium">Processing Document</p>
-                                <p className="text-xs text-yellow-600 mt-1">
-                                  This may take a few minutes for large documents
-                                </p>
-                              </div>
-                            ) : selectedDocument.processingStatus === 'failed' ? (
-                              <div className="text-center p-4 bg-red-50 rounded-lg">
-                                <span className="text-2xl mb-2 block">❌</span>
-                                <p className="text-sm text-red-700 font-medium">Processing Failed</p>
-                                <p className="text-xs text-red-600 mt-1 mb-3">
-                                  Document processing failed. You can try processing it again.
-                                </p>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleRetryProcessing(selectedDocument.id)}
-                                  className="border-red-300 text-red-700 hover:bg-red-100"
-                                >
-                                  🔄 Retry Processing
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                                <span className="text-2xl mb-2 block">📤</span>
-                                <p className="text-sm text-blue-700 font-medium">Processing Pending</p>
-                                <p className="text-xs text-blue-600 mt-1">
-                                  Your document is queued for processing
-                                </p>
-                              </div>
-                            )}
-                          </Stack>
-                        </div>
-
-                        {/* Recent Sessions */}
-                        {selectedDocument.recentConversations && selectedDocument.recentConversations.length > 0 && (
-                          <div>
-                            <h4 className="font-medium text-gray-900 mb-3">Recent Conversations</h4>
-                            <Stack spacing="xs">
-                              {selectedDocument.recentConversations.map((conversation) => (
-                                <div
-                                  key={conversation.id}
-                                  className="p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
-                                  onClick={() => handleContinueConversation(conversation.id)}
-                                >
-                                  <p className="text-sm font-medium text-gray-900 truncate mb-1">
-                                    {conversation.title}
-                                  </p>
-                                  <div className="flex justify-between items-center text-xs text-gray-500">
-                                    <span>{conversation.messageCount} messages</span>
-                                    <span>{formatDate(conversation.lastMessageAt || conversation.createdAt)}</span>
-                                  </div>
+                              {selectedDocument.doi && (
+                                <div>
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">DOI</h4>
+                                  <p className="text-sm text-gray-700">{selectedDocument.doi}</p>
                                 </div>
-                              ))}
+                              )}
+
+                              {selectedDocument.journal && (
+                                <div>
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Journal</h4>
+                                  <p className="text-sm text-gray-700">{selectedDocument.journal}</p>
+                                </div>
+                              )}
+
+                              {selectedDocument.publicationYear && (
+                                <div>
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Publication Year</h4>
+                                  <p className="text-sm text-gray-700">{selectedDocument.publicationYear}</p>
+                                </div>
+                              )}
+
+                              {!selectedDocument.authors && !selectedDocument.abstract && !selectedDocument.keywords && !selectedDocument.doi && !selectedDocument.journal && !selectedDocument.publicationYear && (
+                                <div className="text-center py-8">
+                                  <p className="text-sm text-gray-500">No metadata available</p>
+                                </div>
+                              )}
                             </Stack>
-                          </div>
-                        )}
-                      </Stack>
+                          </TabsContent>
+
+                          <TabsContent value="enrichment" className="p-6">
+                            <Stack spacing="md">
+                              {selectedDocument.enrichment?.research_questions && selectedDocument.enrichment.research_questions.length > 0 && (
+                                <div>
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Research Questions</h4>
+                                  <ul className="list-disc list-inside space-y-1">
+                                    {selectedDocument.enrichment.research_questions.map((question, index) => (
+                                      <li key={index} className="text-sm text-gray-700">{question}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {selectedDocument.enrichment?.key_contributions && selectedDocument.enrichment.key_contributions.length > 0 && (
+                                <div>
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Key Contributions</h4>
+                                  <ul className="list-disc list-inside space-y-1">
+                                    {selectedDocument.enrichment.key_contributions.map((contribution, index) => (
+                                      <li key={index} className="text-sm text-gray-700">{contribution}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {selectedDocument.enrichment?.methodology_summary && (
+                                <div>
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Methodology</h4>
+                                  <p className="text-sm text-gray-700 leading-relaxed">
+                                    {selectedDocument.enrichment.methodology_summary}
+                                  </p>
+                                </div>
+                              )}
+
+                              {selectedDocument.enrichment?.key_concepts && selectedDocument.enrichment.key_concepts.length > 0 && (
+                                <div>
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Key Concepts</h4>
+                                  <Flex gap="sm" wrap="wrap">
+                                    {selectedDocument.enrichment.key_concepts.map((concept, index) => (
+                                      <Badge key={index} variant="info" size="sm">
+                                        {concept}
+                                      </Badge>
+                                    ))}
+                                  </Flex>
+                                </div>
+                              )}
+
+                              {selectedDocument.enrichment?.related_topics && selectedDocument.enrichment.related_topics.length > 0 && (
+                                <div>
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Related Topics</h4>
+                                  <Flex gap="sm" wrap="wrap">
+                                    {selectedDocument.enrichment.related_topics.map((topic, index) => (
+                                      <Badge key={index} variant="default" size="sm">
+                                        {topic}
+                                      </Badge>
+                                    ))}
+                                  </Flex>
+                                </div>
+                              )}
+
+                              {selectedDocument.enrichment?.difficulty_level && (
+                                <div>
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Difficulty Level</h4>
+                                  <Badge
+                                    variant={
+                                      selectedDocument.enrichment.difficulty_level === 'beginner' ? 'success' :
+                                      selectedDocument.enrichment.difficulty_level === 'intermediate' ? 'warning' : 'error'
+                                    }
+                                  >
+                                    {selectedDocument.enrichment.difficulty_level}
+                                  </Badge>
+                                </div>
+                              )}
+
+                              {selectedDocument.enrichment?.reading_time_minutes && (
+                                <div>
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Reading Time</h4>
+                                  <p className="text-sm text-gray-700">{selectedDocument.enrichment.reading_time_minutes} minutes</p>
+                                </div>
+                              )}
+
+                              {selectedDocument.enrichment?.readability_score && (
+                                <div>
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Readability Score</h4>
+                                  <p className="text-sm text-gray-700">{(selectedDocument.enrichment.readability_score * 100).toFixed(0)}%</p>
+                                </div>
+                              )}
+
+                              {selectedDocument.enrichment?.technical_terms && selectedDocument.enrichment.technical_terms.length > 0 && (
+                                <div>
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Technical Terms</h4>
+                                  <Stack spacing="sm">
+                                    {selectedDocument.enrichment.technical_terms.map((item, index) => (
+                                      <div key={index}>
+                                        <p className="text-sm font-medium text-gray-900">{item.term}</p>
+                                        <p className="text-sm text-gray-600">{item.definition}</p>
+                                      </div>
+                                    ))}
+                                  </Stack>
+                                </div>
+                              )}
+
+                              {selectedDocument.enrichment?.future_work_suggestions && selectedDocument.enrichment.future_work_suggestions.length > 0 && (
+                                <div>
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Future Work</h4>
+                                  <ul className="list-disc list-inside space-y-1">
+                                    {selectedDocument.enrichment.future_work_suggestions.map((suggestion, index) => (
+                                      <li key={index} className="text-sm text-gray-700">{suggestion}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {selectedDocument.enrichment?.citation_impact_prediction && (
+                                <div className="border-t pt-4">
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Citation Impact Prediction</h4>
+                                  <Stack spacing="sm">
+                                    <Flex justify="between" align="center">
+                                      <span className="text-sm text-gray-600">Predicted Citations</span>
+                                      <span className="text-lg font-semibold text-blue-600">
+                                        {selectedDocument.enrichment.citation_impact_prediction.predicted_citations}
+                                      </span>
+                                    </Flex>
+                                    <Flex justify="between" align="center">
+                                      <span className="text-sm text-gray-600">Confidence</span>
+                                      <span className="text-sm font-medium">
+                                        {(selectedDocument.enrichment.citation_impact_prediction.confidence * 100).toFixed(0)}%
+                                      </span>
+                                    </Flex>
+                                    {selectedDocument.enrichment.citation_impact_prediction.reasoning && (
+                                      <div className="mt-2">
+                                        <p className="text-sm text-gray-700 leading-relaxed">
+                                          {selectedDocument.enrichment.citation_impact_prediction.reasoning}
+                                        </p>
+                                      </div>
+                                    )}
+                                  </Stack>
+                                </div>
+                              )}
+
+                              {!selectedDocument.enrichment && (
+                                <div className="text-center py-8">
+                                  <p className="text-sm text-gray-500">No insights available</p>
+                                </div>
+                              )}
+                            </Stack>
+                          </TabsContent>
+
+                          {selectedDocument.outline && Array.isArray(selectedDocument.outline) && selectedDocument.outline.length > 0 && (
+                            <TabsContent value="outline" className="p-6">
+                              <Stack spacing="xs">
+                                {selectedDocument.outline.map((item, index) => (
+                                  <div
+                                    key={index}
+                                    className="py-2"
+                                    style={{ paddingLeft: `${item.level * 12}px` }}
+                                  >
+                                    <Flex justify="between" align="start">
+                                      <p className="text-sm text-gray-900 flex-1">{item.title}</p>
+                                      {item.page && (
+                                        <span className="text-xs text-gray-500 ml-2">p.{item.page}</span>
+                                      )}
+                                    </Flex>
+                                  </div>
+                                ))}
+                              </Stack>
+                            </TabsContent>
+                          )}
+                        </div>
+                      </Tabs>
                     </CardContent>
                   </Card>
                 ) : (

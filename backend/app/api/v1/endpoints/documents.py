@@ -7,12 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends, Query
 from fastapi.responses import JSONResponse
 
-from app.schemas.document import (
-    DocumentCreate, 
-    DocumentResponse, 
-    DocumentUpdate,
-    DocumentSummary
-)
+from app.schemas.document import DocumentCreate
 from app.services.document_service import DocumentService
 from app.services.document_processor import document_processor
 from app.models.document import ProcessingStatus
@@ -90,31 +85,7 @@ async def create_document(
         
         # Convert document to response format
         return {
-            "document": {
-                "documentId": str(document.id),
-                "userId": str(document.user_id),
-                "filename": document.filename,
-                "originalFilename": document.original_filename,
-                "fileSizeBytes": document.file_size_bytes,
-                "fileHash": document.file_hash,
-                "mimeType": document.mime_type,
-                "storagePath": document.storage_path,
-                "storageBucket": document.storage_bucket,
-                "processingStatus": document.processing_status,
-                "createdAt": document.created_at.isoformat() if document.created_at else None,
-                "updatedAt": document.updated_at.isoformat() if document.updated_at else None,
-                "title": document.title,
-                "authors": document.authors,
-                "abstract": document.abstract,
-                "doi": document.doi,
-                "publicationYear": document.publication_year,
-                "journal": document.journal,
-                "keywords": document.keywords,
-                "totalPages": document.total_pages,
-                "totalWords": document.total_words,
-                "totalChunks": document.total_chunks,
-                "outline": document.outline
-            }
+            "document": document.to_response_dict()
         }
         
     except ValueError as e:
@@ -153,33 +124,7 @@ async def get_documents(
         )
         
         # Convert documents to response format
-        documents = []
-        for doc in result['documents']:
-            documents.append({
-                "documentId": str(doc.id),
-                "userId": str(doc.user_id),
-                "filename": doc.filename,
-                "originalFilename": doc.original_filename,
-                "fileSizeBytes": doc.file_size_bytes,
-                "fileHash": doc.file_hash,
-                "mimeType": doc.mime_type,
-                "storagePath": doc.storage_path,
-                "storageBucket": doc.storage_bucket,
-                "processingStatus": doc.processing_status,
-                "createdAt": doc.created_at.isoformat() if doc.created_at else None,
-                "updatedAt": doc.updated_at.isoformat() if doc.updated_at else None,
-                "title": doc.title,
-                "authors": doc.authors,
-                "abstract": doc.abstract,
-                "doi": doc.doi,
-                "publicationYear": doc.publication_year,
-                "journal": doc.journal,
-                "keywords": doc.keywords,
-                "totalPages": doc.total_pages,
-                "totalWords": doc.total_words,
-                "totalChunks": doc.total_chunks,
-                "outline": doc.outline
-            })
+        documents = [doc.to_response_dict() for doc in result['documents']]
         
         return {
             "documents": documents,
@@ -208,32 +153,8 @@ async def get_document(
         
         if not document:
             raise HTTPException(status_code=404, detail="Document not found")
-        
-        return {
-            "id": str(document.id),
-            "userId": str(document.user_id),
-            "filename": document.filename,
-            "originalFilename": document.original_filename,
-            "fileSizeBytes": document.file_size_bytes,
-            "fileHash": document.file_hash,
-            "mimeType": document.mime_type,
-            "storagePath": document.storage_path,
-            "storageBucket": document.storage_bucket,
-            "processingStatus": document.processing_status,
-            "createdAt": document.created_at.isoformat() if document.created_at else None,
-            "updatedAt": document.updated_at.isoformat() if document.updated_at else None,
-            "title": document.title,
-            "authors": document.authors,
-            "abstract": document.abstract,
-            "doi": document.doi,
-            "publicationYear": document.publication_year,
-            "journal": document.journal,
-            "keywords": document.keywords,
-            "totalPages": document.total_pages,
-            "totalWords": document.total_words,
-            "totalChunks": document.total_chunks,
-            "outline": document.outline
-        }
+
+        return document.to_response_dict()
         
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid document ID format")

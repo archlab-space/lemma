@@ -12,7 +12,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useApp } from '@/contexts/AppContext'
 import { documentsService, chatService } from '@/lib/api'
 import { Document, ChatConversation, UploadingFile } from '@/lib/api/types'
-import { Button, Card, CardContent, CardHeader, CardTitle, Badge, LoadingState, Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui'
+import { Button, Card, CardContent, CardHeader, CardTitle, Badge, LoadingState, Tabs, TabsList, TabsTrigger, TabsContent, Input } from '@/components/ui'
+import { DocumentCardSkeleton } from '@/components/ui/skeletons'
 import { Container, Grid, Stack, Flex, Header } from '@/components/layout'
 import { FileUploadIntegrated } from '@/components/upload'
 import { ErrorBoundary } from '@/components/error'
@@ -26,9 +27,12 @@ export default function HomePage() {
   const { user, loading: authLoading, signOut } = useAuth()
   const { state, loadDocuments, addNotification } = useApp()
   const router = useRouter()
-  
+
   const [selectedDocument, setSelectedDocument] = useState<DocumentWithConversations | null>(null)
   const [view, setView] = useState<'documents' | 'upload' | 'sessions'>('documents')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [sortBy, setSortBy] = useState<'date' | 'title' | 'status'>('date')
 
   // Use AppContext for documents and conversations
   const documents = state.documents
@@ -45,6 +49,39 @@ export default function HomePage() {
       conversationCount: docConversations.length
     }
   })
+
+  // Filter and sort documents
+  const filteredDocuments = documentsWithConversations
+    .filter(doc => {
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase()
+        const matchesTitle = doc.title?.toLowerCase().includes(query)
+        const matchesFilename = doc.filename.toLowerCase().includes(query)
+        const matchesAuthors = doc.authors?.some(author => author.toLowerCase().includes(query))
+        if (!matchesTitle && !matchesFilename && !matchesAuthors) {
+          return false
+        }
+      }
+
+      // Status filter
+      if (statusFilter !== 'all' && doc.processingStatus !== statusFilter) {
+        return false
+      }
+
+      return true
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'title':
+          return (a.title || a.filename).localeCompare(b.title || b.filename)
+        case 'status':
+          return a.processingStatus.localeCompare(b.processingStatus)
+        case 'date':
+        default:
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      }
+    })
 
 
   const handleDocumentSelect = (document: DocumentWithConversations) => {
@@ -232,7 +269,7 @@ export default function HomePage() {
         <Container size="xl" className="py-8">
           <div className="grid grid-cols-12 gap-8 h-full">
             {/* Left Panel - Navigation & Content */}
-            <div className="col-span-12 lg:col-span-8">
+            <div className={selectedDocument ? "col-span-12 lg:col-span-8" : "col-span-12"}>
               <Stack spacing="lg">
                 {/* View Selector */}
                 <Card variant="outlined">
@@ -265,12 +302,73 @@ export default function HomePage() {
 
                 {/* Content Area */}
                 {loading ? (
-                  <LoadingState message="Loading your workspace..." />
+                  <Grid
+                    cols={1}
+                    responsive={{ sm: 1, md: 2, lg: 3, xl: 4 }}
+                    gap="md"
+                  >
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <DocumentCardSkeleton key={i} />
+                    ))}
+                  </Grid>
                 ) : (
                   <>
                     {/* Documents View */}
                     {view === 'documents' && (
                       <div>
+                        {/* Search and Filter Bar */}
+                        {documentsWithConversations.length > 0 && (
+                          <Card variant="outlined" className="mb-4">
+                            <CardContent className="p-4">
+                              <div className="flex flex-col md:flex-row gap-4">
+                                {/* Search Input */}
+                                <div className="flex-1">
+                                  <Input
+                                    type="text"
+                                    placeholder="Search documents by title, filename, or author..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full"
+                                  />
+                                </div>
+
+                                {/* Status Filter */}
+                                <div className="flex gap-2">
+                                  <select
+                                    value={statusFilter}
+                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                    className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  >
+                                    <option value="all">All Status</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="processing">Processing</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="failed">Failed</option>
+                                  </select>
+
+                                  {/* Sort Dropdown */}
+                                  <select
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value as 'date' | 'title' | 'status')}
+                                    className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  >
+                                    <option value="date">Sort by Date</option>
+                                    <option value="title">Sort by Title</option>
+                                    <option value="status">Sort by Status</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              {/* Results count */}
+                              {(searchQuery || statusFilter !== 'all') && (
+                                <div className="mt-2 text-sm text-gray-600">
+                                  Showing {filteredDocuments.length} of {documentsWithConversations.length} documents
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        )}
+
                         {documentsWithConversations.length === 0 ? (
                           <Card variant="elevated" className="p-12 text-center">
                             <Stack spacing="md" align="center">
@@ -289,8 +387,33 @@ export default function HomePage() {
                             </Stack>
                           </Card>
                         ) : (
-                          <Grid cols={1} responsive={{ md: 2 }} gap="md">
-                            {documentsWithConversations.map((document) => (
+                          <Grid
+                            cols={1}
+                            responsive={
+                              selectedDocument
+                                ? { sm: 1, md: 2, lg: 2 }  // 2 columns when right panel is visible
+                                : { sm: 1, md: 2, lg: 3, xl: 4 }  // More columns when right panel is hidden
+                            }
+                            gap="md"
+                          >
+                            {filteredDocuments.length === 0 ? (
+                              <div className="col-span-full">
+                                <Card variant="outlined" className="p-12 text-center">
+                                  <Stack spacing="md" align="center">
+                                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                      </svg>
+                                    </div>
+                                    <div>
+                                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Documents Found</h3>
+                                      <p className="text-gray-500">Try adjusting your search or filters</p>
+                                    </div>
+                                  </Stack>
+                                </Card>
+                              </div>
+                            ) : null}
+                            {filteredDocuments.map((document) => (
                               <Card
                                 key={document.id}
                                 variant="outlined"
@@ -303,6 +426,7 @@ export default function HomePage() {
                               >
                                 <CardContent className="p-6">
                                   <Stack spacing="sm">
+                                    {/* Header with status */}
                                     <Flex justify="between" align="start">
                                       <div className="flex-1 min-w-0">
                                         <Flex align="center" gap="sm" className="mb-2">
@@ -311,15 +435,48 @@ export default function HomePage() {
                                             {document.processingStatus}
                                           </Badge>
                                         </Flex>
-                                        <h3 className="font-medium text-gray-900 truncate mb-1" title={document.title}>
-                                          {document.title}
+                                        <h3 className="font-medium text-gray-900 line-clamp-2 mb-1" title={document.title || document.filename}>
+                                          {document.title || document.filename}
                                         </h3>
-                                        <p className="text-sm text-gray-500 truncate" title={document.filename}>
-                                          {document.filename}
-                                        </p>
+                                        {document.title && (
+                                          <p className="text-xs text-gray-400 truncate" title={document.filename}>
+                                            {document.filename}
+                                          </p>
+                                        )}
                                       </div>
                                     </Flex>
 
+                                    {/* Authors */}
+                                    {document.authors && document.authors.length > 0 && (
+                                      <p className="text-xs text-gray-600 truncate" title={document.authors.join(', ')}>
+                                        {document.authors.slice(0, 3).join(', ')}
+                                        {document.authors.length > 3 && ` +${document.authors.length - 3} more`}
+                                      </p>
+                                    )}
+
+                                    {/* Enrichment badges */}
+                                    {document.enrichment && (
+                                      <Flex gap="xs" wrap="wrap">
+                                        {document.enrichment.difficulty_level && (
+                                          <Badge
+                                            variant={
+                                              document.enrichment.difficulty_level === 'beginner' ? 'success' :
+                                              document.enrichment.difficulty_level === 'intermediate' ? 'warning' : 'error'
+                                            }
+                                            size="sm"
+                                          >
+                                            {document.enrichment.difficulty_level}
+                                          </Badge>
+                                        )}
+                                        {document.enrichment.reading_time_minutes && (
+                                          <Badge variant="info" size="sm">
+                                            {document.enrichment.reading_time_minutes} min read
+                                          </Badge>
+                                        )}
+                                      </Flex>
+                                    )}
+
+                                    {/* Document stats */}
                                     <div className="flex items-center gap-4 text-xs text-gray-500">
                                       <span>{document.totalPages || 0} pages</span>
                                       <span>{formatFileSize(document.fileSizeBytes)}</span>
@@ -482,9 +639,10 @@ export default function HomePage() {
             </div>
 
             {/* Right Panel - Document Details */}
-            <div className="col-span-12 lg:col-span-4">
-              <div className="sticky top-8">
-                {selectedDocument ? (
+            {selectedDocument && (
+              <div className="col-span-12 lg:col-span-4">
+                <div className="sticky top-8">
+                  {selectedDocument ? (
                   <Card variant="elevated" className="flex flex-col h-[calc(100vh-8rem)]">
                     <CardHeader className="flex-shrink-0">
                       <Flex align="center" gap="sm">
@@ -801,25 +959,10 @@ export default function HomePage() {
                       </Tabs>
                     </CardContent>
                   </Card>
-                ) : (
-                  <Card variant="outlined" className="text-center p-8">
-                    <Stack spacing="md" align="center">
-                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-gray-900 mb-1">Select a Document</h3>
-                        <p className="text-sm text-gray-500">
-                          Choose a document from the left to see details and start a conversation
-                        </p>
-                      </div>
-                    </Stack>
-                  </Card>
-                )}
+                ) : null}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </Container>
       </div>

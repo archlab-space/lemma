@@ -392,7 +392,7 @@ export default function HomePage() {
                             responsive={
                               selectedDocument
                                 ? { sm: 1, md: 2, lg: 2 }  // 2 columns when right panel is visible
-                                : { sm: 1, md: 2, lg: 3, xl: 4 }  // More columns when right panel is hidden
+                                : { sm: 1, md: 2, lg: 3, xl: 3 }  // More columns when right panel is hidden
                             }
                             gap="md"
                           >
@@ -645,12 +645,21 @@ export default function HomePage() {
                   {selectedDocument ? (
                   <Card variant="elevated" className="flex flex-col h-[calc(100vh-8rem)]">
                     <CardHeader className="flex-shrink-0">
-                      <Flex align="center" gap="sm">
+                      <Flex align="center" gap="sm" justify="between">
                         <div className="flex-1 min-w-0">
                           <CardTitle title={selectedDocument.title || selectedDocument.filename}>
                             {selectedDocument.title || selectedDocument.filename}
                           </CardTitle>
                         </div>
+                        <button
+                          onClick={() => setSelectedDocument(null)}
+                          className="flex-shrink-0 p-1 rounded-md hover:bg-gray-100 transition-colors"
+                          aria-label="Close panel"
+                        >
+                          <svg className="w-5 h-5 text-gray-500 hover:text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
                       </Flex>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-hidden p-0">

@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.documents (
     -- Storage information
     storage_path TEXT NOT NULL, -- Path in R2 bucket
     storage_bucket TEXT NOT NULL DEFAULT 'lemma-documents',
+    parsed_text_path TEXT, -- Path to parsed plain text in R2 bucket
     
     -- Document metadata extracted from PDF
     title TEXT,
@@ -80,3 +81,4 @@ COMMENT ON COLUMN public.documents.ai_enhancement_status IS 'Status of AI enhanc
 COMMENT ON COLUMN public.documents.embedding_status IS 'Status of embedding generation and storage process including model info, chunk counts, and completion status';
 COMMENT ON COLUMN public.documents.processing_status IS 'Current processing state of the document';
 COMMENT ON COLUMN public.documents.storage_path IS 'Path to file in object storage bucket';
+COMMENT ON COLUMN public.documents.parsed_text_path IS 'Path to parsed plain text file in R2 bucket';

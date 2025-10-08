@@ -173,9 +173,9 @@ class DocumentProcessor:
             
             # Download PDF from R2 storage
             temp_file_path = await self.download_file_from_r2(document.storage_path)
-            
+
             # Process PDF
-            processing_result = await self.pdf_processor.process_pdf(temp_file_path)
+            processing_result = await self.pdf_processor.process_pdf(temp_file_path, document_id, document.user_id)
             
             # Extract processing results
             metadata = processing_result["metadata"]
@@ -183,15 +183,17 @@ class DocumentProcessor:
             outline = processing_result.get("outline", [])
             enrichment = processing_result.get("enrichment", {})
             ai_enhancement_status = processing_result.get("ai_enhancement_status", {"success": False, "error": None})
+            parsed_text_path = processing_result.get("parsed_text_path")
             
             # Process chunks through embedding pipeline
-            chunk_processing_result = await chunk_processor.process_document_chunks(document_id, document.user_id, chunks)
+            # chunk_processing_result = await chunk_processor.process_document_chunks(document_id, document.user_id, chunks)
+            # TODO: abstract + RAG
             chunk_processing_result = {}
             chunk_count = chunk_processing_result.get('stored_chunks', 0)
             embedding_status = chunk_processing_result.get('embedding_status', {})
             
             # Update document with extracted metadata
-            await self._update_document_metadata(document_id, metadata, outline, enrichment, ai_enhancement_status, embedding_status, chunk_count)
+            await self._update_document_metadata(document_id, metadata, outline, enrichment, ai_enhancement_status, embedding_status, chunk_count, parsed_text_path)
             
             # Calculate processing statistics
             processing_duration = (datetime.now() - processing_start).total_seconds()
@@ -279,15 +281,15 @@ class DocumentProcessor:
             logger.error(f"Failed to get document for processing: {str(e)}")
             return None
 
-    async def _update_document_metadata(self, document_id: UUID, metadata: Dict[str, Any], outline: list, enrichment: Dict[str, Any], ai_enhancement_status: Dict[str, Any], embedding_status: Dict[str, Any], chunk_count: int):
+    async def _update_document_metadata(self, document_id: UUID, metadata: Dict[str, Any], outline: list, enrichment: Dict[str, Any], ai_enhancement_status: Dict[str, Any], embedding_status: Dict[str, Any], chunk_count: int, parsed_text_path: Optional[str] = None):
         """Update document in database with extracted metadata."""
         try:
             from app.db.session import get_db_session
             
             async with get_db_session() as session:
                 await session.execute("""
-                    UPDATE public.documents 
-                    SET 
+                    UPDATE public.documents
+                    SET
                         title = $2,
                         authors = $3,
                         abstract = $4,
@@ -302,9 +304,10 @@ class DocumentProcessor:
                         outline = $13,
                         enrichment = $14,
                         ai_enhancement_status = $15,
-                        embedding_status = $16
+                        embedding_status = $16,
+                        parsed_text_path = $17
                     WHERE id = $1
-                """, 
+                """,
                 document_id,
                 metadata.get("title"),
                 metadata.get("authors", []),
@@ -321,6 +324,7 @@ class DocumentProcessor:
                 json.dumps(enrichment),
                 json.dumps(ai_enhancement_status),
                 json.dumps(embedding_status),
+                parsed_text_path,
                 )
                 
             logger.info(f"Updated document metadata for {document_id}")

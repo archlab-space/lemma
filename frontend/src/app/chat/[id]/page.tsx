@@ -12,7 +12,7 @@ import { useApp } from '@/contexts/AppContext'
 import { chatService, documentsService } from '@/lib/api'
 import { ChatConversation, Document, ChatMessage } from '@/lib/api/types'
 import StreamingChatIntegrated  from '@/components/chat/StreamingChatIntegrated'
-import DocumentMetadata from '@/components/document/DocumentMetadata'
+import DocumentDetailsPanel from '@/components/document/DocumentDetailsPanel'
 import { Button, Card, CardContent, Badge, LoadingState } from '@/components/ui'
 import { Container, Stack, Flex } from '@/components/layout'
 import { ErrorBoundary } from '@/components/error'
@@ -114,7 +114,7 @@ export default function ChatSessionPage() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="h-screen overflow-hidden bg-gray-50 flex flex-col">
         {/* Header */}
         <nav className="bg-white shadow-sm border-b flex-shrink-0">
           <Container size="xl">
@@ -157,10 +157,10 @@ export default function ChatSessionPage() {
         </nav>
 
         {/* Main Content */}
-        <div className="flex-1 flex">
+        <div className="flex-1 flex min-h-0">
           {/* Chat Area */}
-          <div className={`flex-1 transition-all duration-300 ${showDocumentDetails ? 'mr-80' : ''}`}>
-            <Container size="xl" className="h-full py-6">
+          <div className={`flex-1 transition-all duration-300 ${showDocumentDetails ? 'mr-[32rem]' : ''}`}>
+            <Container size="xl" className="h-full">
               <div className="h-full">
                 <StreamingChatIntegrated
                   documentId={document.id}
@@ -203,89 +203,11 @@ export default function ChatSessionPage() {
 
           {/* Document Details Sidebar */}
           {showDocumentDetails && (
-            <div className="fixed right-0 top-0 bottom-0 w-80 bg-white border-l shadow-lg z-40 overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b p-4">
-                <Flex justify="between" align="center">
-                  <h3 className="font-semibold text-gray-900">Document Details</h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowDocumentDetails(false)}
-                    className="p-1"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </Button>
-                </Flex>
-              </div>
-
-              <div className="p-4">
-                <Stack spacing="lg">
-                  {/* Document Overview */}
-                  <DocumentMetadata 
-                    document={document}
-                  />
-
-                  {/* Quick Actions */}
-                  <Card variant="outlined">
-                    <CardContent className="p-4">
-                      <h4 className="font-medium text-gray-900 mb-3">Quick Actions</h4>
-                      <Stack spacing="sm">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => router.push(`/document/${document.id}`)}
-                          className="w-full justify-start"
-                        >
-                          📖 View Full Document
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => router.push(`/document/${document.id}?view=outline`)}
-                          className="w-full justify-start"
-                        >
-                          📑 Document Outline
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => router.push(`/document/${document.id}?view=search`)}
-                          className="w-full justify-start"
-                        >
-                          🔍 Search Document
-                        </Button>
-                      </Stack>
-                    </CardContent>
-                  </Card>
-
-                  {/* Session Info */}
-                  <Card variant="outlined">
-                    <CardContent className="p-4">
-                      <h4 className="font-medium text-gray-900 mb-3">Session Info</h4>
-                      <Stack spacing="sm">
-                        <Flex justify="between">
-                          <span className="text-sm text-gray-500">Created:</span>
-                          <span className="text-sm font-medium">
-                            {new Date(conversation.createdAt).toLocaleDateString()}
-                          </span>
-                        </Flex>
-                        <Flex justify="between">
-                          <span className="text-sm text-gray-500">Messages:</span>
-                          <span className="text-sm font-medium">{conversation.messageCount}</span>
-                        </Flex>
-                        <Flex justify="between">
-                          <span className="text-sm text-gray-500">Last Active:</span>
-                          <span className="text-sm font-medium">
-                            {conversation.lastMessageAt ?  new Date(conversation.lastMessageAt).toLocaleDateString() : ''}
-                          </span>
-                        </Flex>
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                </Stack>
-              </div>
+            <div className="fixed right-0 top-16 bottom-0 w-[32rem] bg-white border-l shadow-lg z-40">
+              <DocumentDetailsPanel
+                document={document}
+                onClose={() => setShowDocumentDetails(false)}
+              />
             </div>
           )}
         </div>

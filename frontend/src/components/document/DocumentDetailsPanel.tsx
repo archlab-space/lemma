@@ -4,15 +4,19 @@ import { useState } from 'react'
 import { Card, CardHeader, CardContent, Tabs, TabsList, TabsTrigger, TabsContent, Badge } from '@/components/ui'
 import { Stack, Flex } from '@/components/layout'
 import { Document } from '@/lib/api/types'
+import { documentsService } from '@/lib/api/documents'
+import { toast } from 'sonner'
 
 interface DocumentDetailsPanelProps {
   document: Document
   onClose?: () => void
+  onDocumentUpdate?: (document: Document) => void
   className?: string
 }
 
-export default function DocumentDetailsPanel({ document, onClose, className = '' }: DocumentDetailsPanelProps) {
+export default function DocumentDetailsPanel({ document, onClose, onDocumentUpdate, className = '' }: DocumentDetailsPanelProps) {
   const [showFullAbstract, setShowFullAbstract] = useState(false)
+  const [isReprocessing, setIsReprocessing] = useState(false)
 
   const formatFileSize = (bytes: number): string => {
     const units = ['B', 'KB', 'MB', 'GB']
@@ -38,6 +42,25 @@ export default function DocumentDetailsPanel({ document, onClose, className = ''
       case 'pending': return 'info'
       case 'failed': return 'error'
       default: return 'default'
+    }
+  }
+
+  const handleReprocess = async () => {
+    setIsReprocessing(true)
+    try {
+      await documentsService.updateProcessingStatus(document.id, 'processing')
+      toast.success('Document re-processing started')
+
+      // Refresh document to show updated status
+      if (onDocumentUpdate) {
+        const updatedDocument = await documentsService.getDocument(document.id)
+        onDocumentUpdate(updatedDocument)
+      }
+    } catch (error) {
+      console.error('Failed to re-process document:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to start re-processing')
+    } finally {
+      setIsReprocessing(false)
     }
   }
 
@@ -143,6 +166,47 @@ export default function DocumentDetailsPanel({ document, onClose, className = ''
                     </div>
                   </div>
                 </div>
+
+                {/* Re-process Button */}
+                {(document.processingStatus === 'completed' || document.processingStatus === 'failed') && (
+                  <div className="border-t pt-4">
+                    <Flex align="center" justify="between" gap="sm">
+                      <div className="flex-1">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-1">Re-process Document</h4>
+                        <p className="text-xs text-gray-500">
+                          Trigger document processing again to update embeddings and analysis
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleReprocess}
+                        disabled={isReprocessing}
+                        className={`
+                          flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm
+                          transition-all duration-200 flex-shrink-0
+                          ${isReprocessing
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 shadow-sm hover:shadow-md'
+                          }
+                        `}
+                      >
+                        {isReprocessing ? (
+                          <>
+                            <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Processing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>🔄</span>
+                            <span>Re-process</span>
+                          </>
+                        )}
+                      </button>
+                    </Flex>
+                  </div>
+                )}
 
                 {/* Technical Details - Collapsible */}
                 <details className="border-t pt-4">

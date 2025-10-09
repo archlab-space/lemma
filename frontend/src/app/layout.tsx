@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Source_Serif_4, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AppProvider } from "@/contexts/AppContext";
-import { NotificationCenter } from "@/components/ui";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const inter = Inter({
@@ -41,7 +41,7 @@ export default function RootLayout({
         <AuthProvider>
           <AppProvider>
             {children}
-            <NotificationCenter position="top-right" />
+            <Toaster position="top-right" richColors />
           </AppProvider>
         </AuthProvider>
       </body>

@@ -98,15 +98,14 @@ class PDFProcessor:
             logger.error(f"Failed to upload parsed text to R2: {storage_path} - {str(e)}")
             raise ProcessingError(f"Failed to upload parsed text: {str(e)}", storage_path) from e
 
-    async def process_pdf(self, file_path: str, document_id: UUID, user_id: UUID) -> Dict[str, Any]:
+    async def process_pdf(self, file_path: str, storage_path: str) -> Dict[str, Any]:
         """
         Main method to process a PDF file.
         Returns extracted text, metadata, block-based chunks, and outline.
 
         Args:
             file_path: Local path to the PDF file
-            document_id: UUID of the document
-            user_id: UUID of the user who owns the document
+            storage_path: R2 storage path of the original PDF file
         """
         try:
             # Validate PDF file
@@ -118,10 +117,13 @@ class PDFProcessor:
             # Create chunks from extracted content
             result["chunks"] = self.chunker.create_block_chunks(result["page_info"])
 
-            # Store parsed text to R2
-            from datetime import datetime
-            timestamp = datetime.now().strftime('%Y-%m-%d')
-            parsed_text_path = f"documents/{user_id}/{timestamp}/{document_id}_parsed.txt"
+            # Store parsed text to R2 alongside the original PDF
+            # Derive text path from PDF storage path by replacing/removing .pdf extension
+            if storage_path.endswith('.pdf'):
+                parsed_text_path = storage_path[:-4] + '.txt'
+            else:
+                # Fallback: append .txt if no .pdf extension found
+                parsed_text_path = storage_path + '.txt'
 
             await self._upload_text_to_r2(result["full_text"], parsed_text_path)
             result["parsed_text_path"] = parsed_text_path

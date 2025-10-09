@@ -22,8 +22,6 @@ export type { SkeletonProps } from './Skeleton'
 export { default as LoadingState } from './LoadingState'
 export type { LoadingStateProps } from './LoadingState'
 
-export { default as NotificationCenter } from './NotificationCenter'
-
 export { default as Avatar } from './Avatar'
 
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs'

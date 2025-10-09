@@ -252,7 +252,9 @@ async def ask_question_streaming(
                 "X-Accel-Buffering": "no",  # Disable nginx buffering
             }
         )
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Question processing failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to process question: {str(e)}")
@@ -312,7 +314,9 @@ async def ask_question_sync(
             processing_time_ms=processing_time,
             quality_assessment=quality_assessment
         )
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Synchronous question processing failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to process question: {str(e)}")
@@ -341,7 +345,9 @@ async def get_document_summary(
             documentId=str(request.document_id),
             processingTimeMs=processing_time
         )
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Document summary generation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to generate summary: {str(e)}")
@@ -365,7 +371,9 @@ async def get_suggested_questions(
             questions=questions,
             documentId=str(request.document_id)
         )
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Question suggestion failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to suggest questions: {str(e)}")
@@ -448,7 +456,9 @@ async def create_conversation(
                 createdAt=result['created_at'].isoformat(),
                 updatedAt=result['updated_at'].isoformat()
             )
-            
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to create conversation: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to create conversation: {str(e)}")
@@ -529,7 +539,9 @@ async def list_conversations(
                 page=page,
                 page_size=page_size
             )
-            
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to list conversations: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to list conversations: {str(e)}")
@@ -653,9 +665,9 @@ async def delete_conversation(
                     WHERE id = $1
                 """, conversation_id, datetime.now())
                 logger.info(f"Soft deleted conversation {conversation_id}")
-            
+
             return {"message": "Conversation deleted successfully"}
-            
+
     except HTTPException:
         raise
     except Exception as e:
@@ -689,10 +701,11 @@ async def submit_message_feedback(
                 SET user_rating = $2, user_feedback = $3, is_helpful = $4
                 WHERE id = $1
             """, request.message_id, request.rating, request.feedback, request.is_helpful)
-            
+
+
             logger.info(f"User {UUID(user_id)} submitted feedback for message {request.message_id}")
             return {"message": "Feedback submitted successfully"}
-            
+
     except HTTPException:
         raise
     except Exception as e:

@@ -175,7 +175,7 @@ class DocumentProcessor:
             temp_file_path = await self.download_file_from_r2(document.storage_path)
 
             # Process PDF
-            processing_result = await self.pdf_processor.process_pdf(temp_file_path, document_id, document.user_id)
+            processing_result = await self.pdf_processor.process_pdf(temp_file_path, document.storage_path)
             
             # Extract processing results
             metadata = processing_result["metadata"]

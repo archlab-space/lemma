@@ -17,12 +17,12 @@ import { Button, Card, CardContent, Badge, LoadingState } from '@/components/ui'
 import { Container, Stack, Flex } from '@/components/layout'
 import { ErrorBoundary } from '@/components/error'
 import Link from 'next/link'
+import { toast } from 'sonner'
 
 export default function ChatSessionPage() {
   const params = useParams()
   const router = useRouter()
   const { user } = useAuth()
-  const { addNotification } = useApp()
   
   const conversationId = params?.id as string
   const [conversation, setConversation] = useState<ChatConversation | null>(null)
@@ -52,15 +52,11 @@ export default function ChatSessionPage() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load chat session'
       setError(errorMessage)
-      addNotification({
-        type: 'error',
-        title: 'Loading Failed',
-        message: errorMessage
-      })
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
-  }, [conversationId, addNotification])
+  }, [conversationId])
 
     useEffect(() => {
     if (conversationId && user?.id) {
@@ -188,11 +184,7 @@ export default function ChatSessionPage() {
                   }}
                   onError={(error) => {
                     console.error('Chat error:', error)
-                    addNotification({
-                      type: 'error',
-                      title: 'Chat Error',
-                      message: error
-                    })
+                    toast.error(error)
                   }}
                   placeholder={`Ask a question about "${document.title}"`}
                   className="h-full"

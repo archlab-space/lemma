@@ -9,6 +9,7 @@ import React, { createContext, useContext, useReducer, useEffect, useCallback } 
 import { useAuth } from './AuthContext'
 import { documentsService, userService, chatService } from '@/lib/api'
 import { Document, User, UserStats, ChatConversation } from '@/lib/api/types'
+import { toast } from 'sonner'
 
 // State Types
 interface AppState {
@@ -29,14 +30,6 @@ interface AppState {
   // UI State
   sidebarCollapsed: boolean
   theme: 'light' | 'dark'
-  notifications: Array<{
-    id: string
-    type: 'info' | 'success' | 'warning' | 'error'
-    title: string
-    message: string
-    timestamp: Date
-    read: boolean
-  }>
   
   // Loading states
   loading: {
@@ -83,10 +76,6 @@ type AppAction =
   | { type: 'TOGGLE_SIDEBAR' }
   | { type: 'SET_SIDEBAR_COLLAPSED'; payload: boolean }
   | { type: 'SET_THEME'; payload: 'light' | 'dark' }
-  | { type: 'ADD_NOTIFICATION'; payload: Omit<AppState['notifications'][0], 'id' | 'timestamp' | 'read'> }
-  | { type: 'REMOVE_NOTIFICATION'; payload: string }
-  | { type: 'MARK_NOTIFICATION_READ'; payload: string }
-  | { type: 'CLEAR_ALL_NOTIFICATIONS' }
   
   // Reset actions
   | { type: 'RESET_STATE' }
@@ -103,7 +92,6 @@ const initialState: AppState = {
   conversationsError: null,
   sidebarCollapsed: false,
   theme: 'light',
-  notifications: [],
   loading: {
     userProfile: false,
     userStats: false,
@@ -252,40 +240,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         theme: action.payload
       }
-    
-    case 'ADD_NOTIFICATION':
-      return {
-        ...state,
-        notifications: [
-          {
-            ...action.payload,
-            id: crypto.randomUUID(),
-            timestamp: new Date(),
-            read: false
-          },
-          ...state.notifications
-        ]
-      }
-    
-    case 'REMOVE_NOTIFICATION':
-      return {
-        ...state,
-        notifications: state.notifications.filter(n => n.id !== action.payload)
-      }
-    
-    case 'MARK_NOTIFICATION_READ':
-      return {
-        ...state,
-        notifications: state.notifications.map(n => 
-          n.id === action.payload ? { ...n, read: true } : n
-        )
-      }
-    
-    case 'CLEAR_ALL_NOTIFICATIONS':
-      return {
-        ...state,
-        notifications: []
-      }
 
     // Reset
     case 'RESET_STATE':
@@ -319,10 +273,6 @@ interface AppContextType {
   toggleSidebar: () => void
   setSidebarCollapsed: (collapsed: boolean) => void
   setTheme: (theme: 'light' | 'dark') => void
-  addNotification: (notification: Omit<AppState['notifications'][0], 'id' | 'timestamp' | 'read'>) => void
-  removeNotification: (id: string) => void
-  markNotificationRead: (id: string) => void
-  clearAllNotifications: () => void
   
   // Utility methods
   resetState: () => void
@@ -356,46 +306,25 @@ export function AppProvider({ children }: AppProviderProps) {
     try {
       const updatedProfile = await userService.updateProfile(updates)
       dispatch({ type: 'SET_USER_PROFILE', payload: updatedProfile })
-      dispatch({ 
-        type: 'ADD_NOTIFICATION', 
-        payload: { 
-          type: 'success', 
-          title: 'Profile Updated', 
-          message: 'Your profile has been successfully updated.' 
-        } 
-      })
+      toast.success('Profile updated successfully')
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update profile'
-      dispatch({ 
-        type: 'ADD_NOTIFICATION', 
-        payload: { 
-          type: 'error', 
-          title: 'Update Failed', 
-          message: errorMessage 
-        } 
-      })
+      toast.error(errorMessage)
     }
   }, [])
 
   // Load documents
   const loadDocuments = useCallback(async (refresh = false) => {
     if (!user) return
-    
+
     dispatch({ type: 'SET_DOCUMENTS_LOADING', payload: true })
-    
+
     try {
       const response = await documentsService.getDocuments({ limit: 100 })
       dispatch({ type: 'SET_DOCUMENTS', payload: response.data || [] })
-      
+
       if (refresh) {
-        dispatch({ 
-          type: 'ADD_NOTIFICATION', 
-          payload: { 
-            type: 'info', 
-            title: 'Documents Refreshed', 
-            message: 'Your document library has been updated.' 
-          } 
-        })
+        toast.info('Document library refreshed')
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load documents'
@@ -406,22 +335,15 @@ export function AppProvider({ children }: AppProviderProps) {
   // Load conversations
   const loadConversations = useCallback(async (refresh = false) => {
     if (!user) return
-    
+
     dispatch({ type: 'SET_CONVERSATIONS_LOADING', payload: true })
-    
+
     try {
       const response = await chatService.getConversations({ page_size: 50 })
       dispatch({ type: 'SET_CONVERSATIONS', payload: response.conversations || [] })
-      
+
       if (refresh) {
-        dispatch({ 
-          type: 'ADD_NOTIFICATION', 
-          payload: { 
-            type: 'info', 
-            title: 'Conversations Refreshed', 
-            message: 'Your conversations have been updated.' 
-          } 
-        })
+        toast.info('Conversations refreshed')
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load conversations'
@@ -432,14 +354,7 @@ export function AppProvider({ children }: AppProviderProps) {
   // Document management methods
   const addDocument = useCallback((document: Document) => {
     dispatch({ type: 'ADD_DOCUMENT', payload: document })
-    dispatch({ 
-      type: 'ADD_NOTIFICATION', 
-      payload: { 
-        type: 'success', 
-        title: 'Document Added', 
-        message: `${document.title} has been successfully uploaded.` 
-      } 
-    })
+    toast.success(`${document.title || document.filename} uploaded successfully`)
   }, [])
 
   const updateDocument = useCallback((document: Document) => {
@@ -449,30 +364,16 @@ export function AppProvider({ children }: AppProviderProps) {
   const removeDocument = useCallback((documentId: string) => {
     const document = state.documents.find(d => d.id === documentId)
     dispatch({ type: 'REMOVE_DOCUMENT', payload: documentId })
-    
+
     if (document) {
-      dispatch({ 
-        type: 'ADD_NOTIFICATION', 
-        payload: { 
-          type: 'info', 
-          title: 'Document Deleted', 
-          message: `${document.title} has been deleted.` 
-        } 
-      })
+      toast.info(`${document.title || document.filename} deleted`)
     }
   }, [state.documents])
 
   // Conversation management methods
   const addConversation = useCallback((conversation: ChatConversation) => {
     dispatch({ type: 'ADD_CONVERSATION', payload: conversation })
-    dispatch({ 
-      type: 'ADD_NOTIFICATION', 
-      payload: { 
-        type: 'success', 
-        title: 'Conversation Started', 
-        message: `New conversation "${conversation.title}" has been created.` 
-      } 
-    })
+    toast.success(`Conversation "${conversation.title}" created`)
   }, [])
 
   const updateConversation = useCallback((conversation: ChatConversation) => {
@@ -482,16 +383,9 @@ export function AppProvider({ children }: AppProviderProps) {
   const removeConversation = useCallback((conversationId: string) => {
     const conversation = state.conversations.find(c => c.id === conversationId)
     dispatch({ type: 'REMOVE_CONVERSATION', payload: conversationId })
-    
+
     if (conversation) {
-      dispatch({ 
-        type: 'ADD_NOTIFICATION', 
-        payload: { 
-          type: 'info', 
-          title: 'Conversation Deleted', 
-          message: `"${conversation.title}" has been deleted.` 
-        } 
-      })
+      toast.info(`"${conversation.title}" deleted`)
     }
   }, [state.conversations])
 
@@ -508,35 +402,6 @@ export function AppProvider({ children }: AppProviderProps) {
     dispatch({ type: 'SET_THEME', payload: theme })
     // Persist theme preference
     localStorage.setItem('lemma-theme', theme)
-  }, [])
-
-  // Notification methods
-  const addNotification = useCallback((notification: Omit<AppState['notifications'][0], 'id' | 'timestamp' | 'read'>) => {
-    dispatch({ type: 'ADD_NOTIFICATION', payload: notification })
-    
-    // Auto-remove info notifications after 5 seconds
-    if (notification.type === 'info') {
-      setTimeout(() => {
-        // Note: This won't work perfectly due to closure, but it's a reasonable approach
-        const currentNotifications = state.notifications
-        const latestNotification = currentNotifications[0]
-        if (latestNotification) {
-          dispatch({ type: 'REMOVE_NOTIFICATION', payload: latestNotification.id })
-        }
-      }, 5000)
-    }
-  }, [state.notifications])
-
-  const removeNotification = useCallback((id: string) => {
-    dispatch({ type: 'REMOVE_NOTIFICATION', payload: id })
-  }, [])
-
-  const markNotificationRead = useCallback((id: string) => {
-    dispatch({ type: 'MARK_NOTIFICATION_READ', payload: id })
-  }, [])
-
-  const clearAllNotifications = useCallback(() => {
-    dispatch({ type: 'CLEAR_ALL_NOTIFICATIONS' })
   }, [])
 
   const resetState = useCallback(() => {
@@ -565,10 +430,6 @@ export function AppProvider({ children }: AppProviderProps) {
     toggleSidebar,
     setSidebarCollapsed,
     setTheme,
-    addNotification,
-    removeNotification,
-    markNotificationRead,
-    clearAllNotifications,
     resetState
   }
 

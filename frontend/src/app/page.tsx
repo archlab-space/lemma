@@ -18,6 +18,7 @@ import { Container, Grid, Stack, Flex, Header } from '@/components/layout'
 import { FileUploadIntegrated } from '@/components/upload'
 import { ErrorBoundary } from '@/components/error'
 import DocumentDetailsPanel from '@/components/document/DocumentDetailsPanel'
+import { toast } from 'sonner'
 
 interface DocumentWithConversations extends Document {
   recentConversations?: ChatConversation[]
@@ -26,7 +27,7 @@ interface DocumentWithConversations extends Document {
 
 export default function HomePage() {
   const { user, loading: authLoading, signOut } = useAuth()
-  const { state, loadDocuments, addNotification } = useApp()
+  const { state, loadDocuments } = useApp()
   const router = useRouter()
 
   const [selectedDocument, setSelectedDocument] = useState<DocumentWithConversations | null>(null)
@@ -96,11 +97,7 @@ export default function HomePage() {
       const conversation = await chatService.createConversation({ document_id: documentId })
       router.push(`/chat/${conversation.id}`)
     } catch (error) {
-      addNotification({
-        type: 'error',
-        title: 'Failed to Start Chat',
-        message: 'Could not create a new chat session'
-      })
+      toast.error('Could not create a new chat session')
     }
   }
 
@@ -111,19 +108,12 @@ export default function HomePage() {
   const handleRetryProcessing = async (documentId: string) => {
     try {
       await documentsService.triggerProcessing(documentId)
-      addNotification({
-        type: 'success',
-        title: 'Processing Started',
-        message: 'Document processing has been triggered. It may take a few minutes to complete.'
-      })
+      toast.success('Document processing started')
       // Refresh documents to show updated status
       loadDocuments()
     } catch (error) {
-      addNotification({
-        type: 'error',
-        title: 'Processing Failed',
-        message: error instanceof Error ? error.message : 'Failed to trigger document processing'
-      })
+      const errorMessage = error instanceof Error ? error.message : 'Failed to trigger document processing'
+      toast.error(errorMessage)
     }
   }
 
@@ -610,27 +600,15 @@ export default function HomePage() {
                         <CardContent>
                           <FileUploadIntegrated
                             onUploadComplete={(document: Document) => {
-                              addNotification({
-                                type: 'success',
-                                title: 'Upload Complete',
-                                message: `${document.title} is being processed and will be available soon!`
-                              })
+                              toast.success(`${document.title || document.filename} is being processed`)
                               loadDocuments() // Refresh documents through AppContext
                               setView('documents') // Switch back to documents view
                             }}
                             onUploadError={(file: UploadingFile, error: string) => {
-                              addNotification({
-                                type: 'error',
-                                title: 'Upload Failed',
-                                message: `Failed to upload ${file.name}: ${error}`
-                              })
+                              toast.error(`Failed to upload ${file.name}: ${error}`)
                             }}
                             onUploadStart={(file: UploadingFile) => {
-                              addNotification({
-                                type: 'info',
-                                title: 'Upload Started',
-                                message: `Processing ${file.name}...`
-                              })
+                              toast.info(`Processing ${file.name}...`)
                             }}
                           />
                         </CardContent>

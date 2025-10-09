@@ -62,6 +62,7 @@ class Document(Base):
         enrichment: Optional[Union[str, Dict[str, Any]]] = None,
         embedding_status: Optional[Union[str, Dict[str, Any]]] = None,
         ai_enhancement_status: Optional[Union[str, Dict[str, Any]]] = None,
+        parsed_text_path: Optional[str] = None,
         created_at: Optional[datetime] = None,
         updated_at: Optional[datetime] = None,
         deleted_at: Optional[datetime] = None,
@@ -96,6 +97,7 @@ class Document(Base):
         self.enrichment = self._parse_jsonb(enrichment)
         self.embedding_status = self._parse_jsonb(embedding_status)
         self.ai_enhancement_status = self._parse_jsonb(ai_enhancement_status)
+        self.parsed_text_path = parsed_text_path
         self.created_at = created_at
         self.updated_at = updated_at
         self.deleted_at = deleted_at

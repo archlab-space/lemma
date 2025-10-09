@@ -100,6 +100,8 @@ class ChatService {
           if (typeof chunk === 'object' && chunk !== null) {
             const parsed = chunk as Record<string, unknown>
             // Check for completion signal
+            console.log(parsed.status)
+            console.log(parsed.content)
             if (parsed.status === 'completed') {
               // This is the final message with full metadata
               if (onComplete) {
@@ -141,11 +143,12 @@ class ChatService {
               accumulatedContent += content
               onChunk(content)
             }
-          } else if (typeof chunk === 'string') {
-            // Fallback for plain text chunks
-            accumulatedContent += chunk
-            onChunk(chunk)
-          }
+          } 
+          // else if (typeof chunk === 'string') {
+          //   // Fallback for plain text chunks
+          //   accumulatedContent += chunk
+          //   onChunk(chunk)
+          // }
         },
         { signal }
       )

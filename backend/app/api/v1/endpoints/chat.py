@@ -167,8 +167,11 @@ async def ask_question_in_session(
 ):
     """
     Ask a question in a specific chat session with streaming response.
-    
-    This endpoint provides session-aware RAG with conversation history.
+
+    This endpoint provides deep paper understanding using the full document text
+    along with conversation history for context-aware responses.
+
+    Optimized for exploring and understanding research papers rather than simple Q&A.
     """
     try:        
         async def generate_streaming_response():

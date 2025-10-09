@@ -10,6 +10,9 @@ from dataclasses import dataclass
 import json
 import re
 from datetime import datetime
+import aioboto3
+from botocore.config import Config
+from botocore.exceptions import ClientError
 
 from app.core.logging import get_logger
 from app.core.config import get_settings
@@ -87,7 +90,92 @@ class RAGService:
     def __init__(self):
         self.embedding_service = embedding_service
         self.vector_storage = vector_storage
-    
+
+        # Initialize async boto3 session for R2
+        self.session = aioboto3.Session(
+            aws_access_key_id=settings.R2_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
+            region_name='auto',
+        )
+
+        # R2 client config
+        self.r2_config = Config(
+            retries={'max_attempts': 3},
+            s3={'addressing_style': 'path'}
+        )
+
+    async def _fetch_full_text_from_r2(self, document_id: UUID) -> Tuple[str, Dict[str, Any]]:
+        """
+        Fetch full parsed text from R2 storage for a document.
+
+        Args:
+            document_id: The document UUID
+
+        Returns:
+            Tuple of (full_text, document_metadata)
+
+        Raises:
+            RAGError: If document not found or text cannot be fetched
+        """
+        try:
+            from app.db.session import get_db_session
+
+            # Get document metadata and parsed_text_path
+            async with get_db_session() as db_session:
+                result = await db_session.fetchrow("""
+                    SELECT id, title, authors, parsed_text_path, storage_path,
+                           total_pages, total_words, abstract
+                    FROM public.documents
+                    WHERE id = $1 AND deleted_at IS NULL
+                """, document_id)
+
+                if not result:
+                    raise RAGError(f"Document {document_id} not found")
+
+                parsed_text_path = result['parsed_text_path']
+
+                if not parsed_text_path:
+                    raise RAGError(f"Document {document_id} has no parsed text available. Processing may still be in progress.")
+
+                # Prepare document metadata
+                doc_metadata = {
+                    'id': str(result['id']),
+                    'title': result['title'] or 'Untitled Document',
+                    'authors': result['authors'] or [],
+                    'total_pages': result['total_pages'],
+                    'total_words': result['total_words'],
+                    'abstract': result['abstract']
+                }
+
+            # Fetch text from R2
+            logger.info(f"Fetching parsed text from R2: {parsed_text_path}")
+
+            async with self.session.client( # type: ignore
+                's3',
+                endpoint_url=settings.R2_ENDPOINT,
+                config=self.r2_config
+            ) as s3_client:
+                response = await s3_client.get_object(
+                    Bucket=settings.R2_BUCKET_NAME,
+                    Key=parsed_text_path
+                )
+
+                # Read the text content
+                async with response['Body'] as stream:
+                    content_bytes = await stream.read()
+                    full_text = content_bytes.decode('utf-8')
+
+            logger.info(f"Successfully fetched {len(full_text)} characters of text for document {document_id}")
+            return full_text, doc_metadata
+
+        except ClientError as e:
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+            logger.error(f"R2 error fetching text for document {document_id}: {error_code}")
+            raise RAGError(f"Failed to fetch document text from storage: {error_code}") from e
+        except Exception as e:
+            logger.error(f"Failed to fetch full text for document {document_id}: {str(e)}")
+            raise RAGError(f"Failed to retrieve document text: {str(e)}") from e
+
     async def ask_question_with_session(
         self,
         question: str,
@@ -96,30 +184,29 @@ class RAGService:
         streaming: bool = True
     ) -> AsyncGenerator[str, None]:
         """
-        Ask a question with chat session context and store the conversation.
-        
+        Ask a question with chat session context using full document text.
+
         Args:
             question: The user's question
             session_id: Chat session ID
             user_id: User ID
             streaming: Whether to stream the response
-            
+
         Yields:
-            Streaming response tokens
+            Streaming response tokens as JSON
         """
         retrieval_start_time = datetime.now()
         processing_start_time = None
-        retrieved_chunks = []
         session = None
         retrieval_duration_ms = None
-        
+
         try:
             # Get session configuration
             session = await chat_service.get_session(session_id, user_id)
             if not session:
-                yield "Error: Chat session not found."
+                yield json.dumps({"content": "Error: Chat session not found.", "status": "error"})
                 return
-            
+
             # Store user message
             await chat_service.add_message(
                 session_id=session_id,
@@ -127,67 +214,34 @@ class RAGService:
                 content=question,
                 role=MessageRole.USER
             )
-            
+
             logger.info(f"Processing question in session {session_id}: {question[:100]}...")
-            
-            # Step 1: Retrieve relevant chunks
-            retrieved_chunks = await self._retrieve_relevant_chunks(
-                question, 
-                session.document_id, 
-                session.max_tokens // 200,  # Estimate chunks from max tokens
-                RAGConfig.MIN_SIMILARITY_THRESHOLD
-            )
-            
+
+            # Fetch full text from R2
+            full_text, doc_metadata = await self._fetch_full_text_from_r2(session.document_id)
+
             retrieval_duration_ms = int((datetime.now() - retrieval_start_time).total_seconds() * 1000)
             processing_start_time = datetime.now()
-            
-            if not retrieved_chunks:
-                response = "I couldn't find any relevant information to answer your question. Please make sure you've uploaded documents that contain information related to your query."
 
-                # Store assistant message
-                message = await chat_service.add_message(
-                    session_id=session_id,
-                    user_id=user_id,
-                    content=response,
-                    role=MessageRole.ASSISTANT,
-                    token_count=len(response.split()),
-                    model_used=session.model_used,
-                    retrieval_time_ms=retrieval_duration_ms,
-                    processing_time_ms=0
-                )
+            # Get conversation history for context
+            messages = await chat_service.get_messages(session_id, user_id, limit=10)
+            conversation_history = [
+                {"role": msg.role.value, "content": msg.content}
+                for msg in messages[:-1]  # Exclude the just-added user message
+            ]
 
-                # Send content as structured JSON
-                yield json.dumps({"content": response})
+            # Create research-focused prompt with full text
+            prompt = self._create_research_assistant_prompt(
+                question=question,
+                full_text=full_text,
+                doc_metadata=doc_metadata,
+                conversation_history=conversation_history
+            )
 
-                # Send completion signal
-                completion_data = {
-                    "status": "completed",
-                    "id": str(message.id),
-                    "session_id": str(session_id),
-                    "user_id": str(user_id),
-                    "content": response,
-                    "sequence_number": message.sequence_number,
-                    "token_count": message.token_count,
-                    "retrieved_chunks": [],
-                    "chunks_used_count": 0,
-                    "retrieval_query": question,
-                    "retrieval_score": 0.0,
-                    "model_used": session.model_used,
-                    "processing_time_ms": 0,
-                    "retrieval_time_ms": retrieval_duration_ms,
-                    "created_at": message.created_at.isoformat() if message.created_at else datetime.now().isoformat(),
-                    "completed_at": datetime.now().isoformat()
-                }
-                yield json.dumps(completion_data)
-                return
-            
-            # Step 2: Rank and filter context
-            context_chunks = await self._rank_and_filter_context(question, retrieved_chunks)
-            
-            # Step 3: Generate streaming response and collect tokens
+            # Generate streaming response and collect tokens
             response_parts = []
 
-            async for token in self._generate_streaming_answer(question, context_chunks):
+            async for token in self._stream_llm_response(prompt):
                 response_parts.append(token)
                 # Send structured JSON with content
                 yield json.dumps({"content": token})
@@ -196,47 +250,61 @@ class RAGService:
             processing_duration_ms = int((datetime.now() - processing_start_time).total_seconds() * 1000)
             response_text = "".join(response_parts)
 
-            # Store assistant message with full context
-            chunk_ids = [UUID(chunk.id) for chunk in context_chunks if chunk.id]
-
+            # Store assistant message
             message = await chat_service.add_message(
                 session_id=session_id,
                 user_id=user_id,
                 content=response_text,
                 role=MessageRole.ASSISTANT,
                 token_count=len(response_text.split()),
-                retrieved_chunks=chunk_ids,
-                retrieval_query=question,
-                retrieval_score=sum(chunk.similarity_score for chunk in context_chunks) / len(context_chunks) if context_chunks else 0.0,
-                model_used=session.model_used,
+                model_used=session.model_used or RAGConfig.DEFAULT_STREAMING_MODEL,
                 retrieval_time_ms=retrieval_duration_ms,
                 processing_time_ms=processing_duration_ms
             )
 
-            # Send completion signal with full message metadata
+            # Send completion signal with message metadata
             completion_data = {
-                "status": "completed",
                 "id": str(message.id),
                 "session_id": str(session_id),
                 "user_id": str(user_id),
                 "content": response_text,
                 "sequence_number": message.sequence_number,
                 "token_count": message.token_count,
-                "retrieved_chunks": [chunk.content for chunk in context_chunks[:3]],  # First 3 chunks as preview
-                "chunks_used_count": len(context_chunks),
-                "retrieval_query": question,
-                "retrieval_score": message.retrieval_score,
-                "model_used": session.model_used,
+                "document_title": doc_metadata.get('title'),
+                "model_used": session.model_used or RAGConfig.DEFAULT_STREAMING_MODEL,
                 "processing_time_ms": processing_duration_ms,
                 "retrieval_time_ms": retrieval_duration_ms,
+                "status": "completed",
                 "created_at": message.created_at.isoformat() if message.created_at else datetime.now().isoformat(),
                 "completed_at": datetime.now().isoformat()
             }
             yield json.dumps(completion_data)
-                
+
+        except RAGError as e:
+            logger.error(f"RAG error in session {session_id}: {str(e)}")
+            error_message = str(e)
+
+            # Store error message
+            try:
+                await chat_service.add_message(
+                    session_id=session_id,
+                    user_id=user_id,
+                    content=error_message,
+                    role=MessageRole.ASSISTANT,
+                    token_count=len(error_message.split()),
+                    model_used=session.model_used if session else None,
+                    retrieval_time_ms=retrieval_duration_ms,
+                    processing_time_ms=0
+                )
+            except Exception as store_error:
+                logger.error(f"Failed to store error message: {str(store_error)}")
+
+            # Send error as structured JSON
+            yield json.dumps({"content": error_message, "status": "error"})
+
         except Exception as e:
-            logger.error(f"RAG question processing failed: {str(e)}")
-            error_message = f"I apologize, but I encountered an error while processing your question: {str(e)}"
+            logger.error(f"Unexpected error in session {session_id}: {str(e)}")
+            error_message = f"I apologize, but I encountered an unexpected error while processing your question: {str(e)}"
 
             # Store error message
             try:
@@ -521,9 +589,9 @@ class RAGService:
         return "\n\n".join(context_parts)
     
     def _create_qa_prompt(
-        self, 
-        question: str, 
-        context: str, 
+        self,
+        question: str,
+        context: str,
         chunks: List[RetrievedChunk]
     ) -> str:
         """Create the Q&A prompt for the LLM."""
@@ -534,14 +602,14 @@ class RAGService:
             page_ref = f"(Page {chunk.page_number})"
             if f"{source} {page_ref}" not in sources:
                 sources.append(f"{source} {page_ref}")
-        
+
         sources_text = ", ".join(sources) if sources else "uploaded documents"
-        
+
         prompt = f"""You are a helpful AI assistant that answers questions based on provided document content. Your role is to provide accurate, well-reasoned answers using ONLY the information from the given context.
 
 ## INSTRUCTIONS:
 1. **Use only the provided context** - Do not use external knowledge
-2. **Be precise and accurate** - Quote relevant parts when helpful  
+2. **Be precise and accurate** - Quote relevant parts when helpful
 3. **Indicate uncertainty** - If the context doesn't fully answer the question, say so
 4. **Reference sources** - Mention which document/page contains relevant information
 5. **Be concise but complete** - Provide thorough answers without unnecessary verbosity
@@ -556,7 +624,68 @@ class RAGService:
 Based on the provided documents ({sources_text}), here is my response:
 
 """
-        
+
+        return prompt
+
+    def _create_research_assistant_prompt(
+        self,
+        question: str,
+        full_text: str,
+        doc_metadata: Dict[str, Any],
+        conversation_history: Optional[List[Dict[str, str]]] = None
+    ) -> str:
+        """
+        Create a research-focused prompt for deep paper understanding.
+
+        Args:
+            question: The user's question
+            full_text: Complete text of the research paper
+            doc_metadata: Document metadata (title, authors, etc.)
+            conversation_history: Previous messages in the conversation
+        """
+        # Format document information
+        doc_title = doc_metadata.get('title', 'Untitled Document')
+        doc_authors = doc_metadata.get('authors', [])
+        authors_text = ', '.join(doc_authors[:3])  # Show first 3 authors
+        if len(doc_authors) > 3:
+            authors_text += f" et al. ({len(doc_authors)} authors total)"
+
+        doc_info = f"**{doc_title}**"
+        if authors_text:
+            doc_info += f"\nAuthors: {authors_text}"
+
+        # Build conversation context if available
+        history_text = ""
+        if conversation_history and len(conversation_history) > 0:
+            history_text = "\n## CONVERSATION HISTORY:\n"
+            for msg in conversation_history[-6:]:  # Last 6 messages (3 turns)
+                role = msg.get('role', '').upper()
+                content = msg.get('content', '')
+                history_text += f"\n**{role}**: {content}\n"
+            history_text += "\n"
+
+        prompt = f"""You are an expert research assistant helping users deeply understand and explore academic research papers. Your role is to provide thoughtful, detailed insights that help researchers, students, and professionals grasp complex concepts.
+
+## YOUR APPROACH:
+1. **Explain with clarity** - Break down complex ideas into understandable explanations
+2. **Connect concepts** - Show how different parts of the paper relate to each other
+3. **Provide context** - Explain the significance of findings, methodologies, and terminology
+4. **Be thorough** - Give detailed, nuanced answers that demonstrate deep understanding
+5. **Support exploration** - Encourage curiosity and help users think critically about the research
+6. **Stay grounded** - Base all responses strictly on the paper's content; acknowledge when information isn't present
+
+## DOCUMENT INFORMATION:
+{doc_info}
+
+## FULL PAPER TEXT:
+{full_text}
+{history_text}
+## USER QUESTION:
+{question}
+
+## YOUR RESPONSE:
+"""
+
         return prompt
     
     async def _stream_llm_response(self, prompt: str) -> AsyncGenerator[str, None]:

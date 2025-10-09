@@ -170,7 +170,7 @@ export default function DocumentDetailsPanel({ document, onClose, onDocumentUpda
                 {/* Re-process Button */}
                 {(document.processingStatus === 'completed' || document.processingStatus === 'failed') && (
                   <div className="border-t pt-4">
-                    <Flex align="center" justify="between" gap="sm">
+                    <Flex direction="col" align="center" justify="between" gap="sm">
                       <div className="flex-1">
                         <h4 className="text-sm font-semibold text-gray-700 mb-1">Re-process Document</h4>
                         <p className="text-xs text-gray-500">

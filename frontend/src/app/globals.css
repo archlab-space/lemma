@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 :root {
   /* Color Palette - Scholarly Green Theme */
@@ -135,39 +136,8 @@ body {
   font-family: var(--font-mono);
 }
 
-/* Academic Content Styling */
-.prose {
-  font-family: var(--font-serif);
-  font-size: 1.0625rem;
-  line-height: 1.75;
-  color: var(--color-foreground);
-  max-width: 70ch;
-}
-
-.prose p {
-  margin-bottom: 1.25em;
-}
-
-.prose h1, .prose h2, .prose h3, .prose h4 {
-  font-family: var(--font-sans);
-  font-weight: 600;
-  color: var(--color-foreground);
-  margin-top: 1.5em;
-  margin-bottom: 0.75em;
-  line-height: 1.3;
-}
-
-.prose h1 {
-  font-size: 2.25rem;
-}
-
-.prose h2 {
-  font-size: 1.875rem;
-}
-
-.prose h3 {
-  font-size: 1.5rem;
-}
+/* Typography plugin now handles all .prose, .prose-sm, and .prose-invert classes */
+/* Custom overrides can be added below if needed */
 
 /* UI Focus States */
 :focus-visible {

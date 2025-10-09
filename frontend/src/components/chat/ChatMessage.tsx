@@ -1,6 +1,10 @@
 'use client'
 
 import React, { useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import rehypeHighlight from 'rehype-highlight'
+import 'highlight.js/styles/github-dark.css'
 import { Button, Badge } from '@/components/ui'
 import { Flex, Stack } from '@/components/layout'
 
@@ -95,16 +99,21 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
       )
     }
 
-    // Split content by newlines and render paragraphs
-    const paragraphs = message.content.split('\n').filter(p => p.trim())
-    
+    // User messages: simple text (no Markdown needed)
+    if (isUser) {
+      return <div className="leading-relaxed whitespace-pre-wrap">{message.content}</div>
+    }
+
+    // Assistant messages: full Markdown rendering
+    // Using Tailwind Typography plugin classes for better out-of-the-box styling
     return (
-      <div className="space-y-2">
-        {paragraphs.map((paragraph, index) => (
-          <p key={index} className="leading-relaxed">
-            {paragraph}
-          </p>
-        ))}
+      <div className="prose prose-sm prose-slate max-w-none">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeHighlight]}
+        >
+          {message.content}
+        </ReactMarkdown>
       </div>
     )
   }

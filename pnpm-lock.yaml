@@ -36,7 +36,7 @@ importers:
     dependencies:
       '@tsndr/cloudflare-worker-jwt':
         specifier: ^3.2.0
-        version: 3.2.0
+        version: 3.2.1
       aws4fetch:
         specifier: ^1.0.20
         version: 1.0.20
@@ -1200,8 +1200,8 @@ packages:
   '@tsconfig/node16@1.0.4':
     resolution: {integrity: sha512-vxhUy4J8lyeyinH7Azl1pdd43GJhZH/tP2weN8TntQblOY+A0XbT8DJk1/oCPuOOyg/Ja757rG0CgHcWC8OfMA==}
 
-  '@tsndr/cloudflare-worker-jwt@3.2.0':
-    resolution: {integrity: sha512-y45452JzKxFDfCUHNGrdgIcrJTkYa6xtrKtCQTjKj+hjzw8dOHF9R0uGuU8WxvCCMi4sMzZ1KREnZTsTy7DsiQ==}
+  '@tsndr/cloudflare-worker-jwt@3.2.1':
+    resolution: {integrity: sha512-1AfDEgu7DTbU0sXDSOKh4D5t7+RJ0dIRRaDmoX3LFeW0AxQdunuqTQ7AVGwNJqOnxrbxiruyvX01cf9HHqEvXQ==}
 
   '@turbo/gen@2.5.6':
     resolution: {integrity: sha512-0ugshQQGJE/lVYHhkFsdAd6prM279Uyl+UVfylkNhrL21YML4/fGKPYb99G0bNJ+okp7bA++4/RDFh3MS0ZeRg==}
@@ -4743,7 +4743,7 @@ snapshots:
 
   '@tsconfig/node16@1.0.4': {}
 
-  '@tsndr/cloudflare-worker-jwt@3.2.0': {}
+  '@tsndr/cloudflare-worker-jwt@3.2.1': {}
 
   '@turbo/gen@2.5.6(@types/node@24.4.0)(typescript@5.9.2)':
     dependencies:

@@ -158,6 +158,7 @@ env/
 # Cloudflare Workers
 .wrangler/
 wrangler.toml
+edge/worker-configuration.d.ts
 
 # Database
 *.db

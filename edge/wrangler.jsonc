@@ -16,12 +16,12 @@
 	
 	// Environment Variables (non-sensitive)
 	"vars": {
-		"SUPABASE_URL": "https://hvbzrbfevhnytecmwbdw.supabase.co",
-		"SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2YnpyYmZldmhueXRlY213YmR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgwNzUwODgsImV4cCI6MjA3MzY1MTA4OH0.8R2l6eSbHujd5CKO1xKh00JuCKGX8PeBBP2VOGKkOAM",
+		"SUPABASE_URL": "https://YOUR_PROJECT_ID.supabase.co",
+		"SUPABASE_ANON_KEY": "your-supabase-anon-key",
 		"BACKEND_URL": "http://localhost:8000",
 		"JWT_ALGORITHM": "ES256",
-		"JWT_DISCOVERY_URL": "https://hvbzrbfevhnytecmwbdw.supabase.co/auth/v1/.well-known/jwks.json",
-		"R2_ACCOUNT_ID": "b49337c8c317194c858bde1373b9aac3"
+		"JWT_DISCOVERY_URL": "https://YOUR_PROJECT_ID.supabase.co/auth/v1/.well-known/jwks.json",
+		"R2_ACCOUNT_ID": "your-cloudflare-account-id"
 	},
 
 	// R2 Object Storage Binding
